@@ -1,13 +1,15 @@
-<?xml version="1.0" encoding="UTF-8" ?>
-<rss version="2.0">
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Northeastern Tribal Health System RSS</title>
     <link>https://northeastern-tribal-health-system.github.io/RSS-Feed/</link>
+    <atom:link href="https://northeastern-tribal-health-system.github.io/RSS-Feed/" rel="self" type="application/rss+xml" />
     <description>This is the start of the NTHS RSS Feed.</description>
     <lastBuildDate>Mon, 16 Jun 2025 12:00:00 GMT</lastBuildDate>
     <item>
       <title>Northeastern Tribal Health SYstem</title>
       <link>https://northeastern-tribal-health-system.github.io/RSS-Feed/</link>
+      <guid isPermaLink="true">https://northeastern-tribal-health-system.github.io/RSS-Feed/</guid>
       <description>This is the end of the NTHS RSS Feed!@#$%^*</description>
       <pubDate>Mon, 16 Jun 2025 12:00:00 GMT</pubDate>
     </item>
