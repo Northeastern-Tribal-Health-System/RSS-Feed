@@ -7,9 +7,12 @@
                rel="self"
                type="application/rss+xml"/>
     <description>NTHS RSS Feed.</description>
+    <pubDate>Mon, 16 Jun 2025 12:00:00 GMT</pubDate>
     <lastBuildDate>Mon, 16 Jun 2025 12:00:00 GMT</lastBuildDate>
+    <ttl>60</ttl>
+    <copyright>Copyright © 2025 Northeastern Tribal Health System. All rights reserved.</copyright>
     <item>
-      <title>Northeastern Tribal Health SYstem</title>
+      <title>Northeastern Tribal Health System</title>
       <link>https://northeastern-tribal-health-system.github.io/RSS-Feed/</link>
       <guid isPermaLink="true">https://northeastern-tribal-health-system.github.io/RSS-Feed/</guid>
       <description>This is the end of the NTHS RSS Feed!</description>
