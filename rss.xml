@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+  <?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Northeastern Tribal Health System RSS</title>
@@ -12,98 +12,31 @@
     <ttl>60</ttl>
 
     <item>
-      <title>Men's Health Awareness Month</title>
-      <link>https://menshealthmonth.org</link>
-      <guid isPermaLink="false">mens-health-awareness-month-june-2025</guid>
-      <description><![CDATA[
-        <p>Men's Health Month raises awareness of the critical aspects of men's health—physical, mental, and social connection.</p>
-        <h3>Men's Physical Health</h3>
-        <p>Visit <a href="https://menshealthmonth.org">menshealthmonth.org</a> to download a men's health checklist.</p>
-        <p>A complete list of recommended adult vaccinations is available from the CDC: <a href="https://cdc.gov">cdc.gov</a>.</p>
-
-        <h3>Men's Mental Health</h3>
-        <p>Mental health significantly influences overall well-being. Men are less likely to seek help but must recognize and address symptoms of depression and anxiety. Open conversations about mental health can reduce stigma.</p>
-
-        <h3>The Importance of Social Connection</h3>
-        <p>Strong social connections are vital for health. Loneliness increases the risk of heart disease, dementia, stroke, depression, and anxiety. Building and maintaining social connections can improve overall health and reduce premature mortality. Even simple actions, such as contacting friends or community volunteering, greatly benefit mental well-being.</p>
-
-        <p>Men's Health Month encourages proactive health management. Contact a provider today for health screenings and assessments.</p>
-      ]]></description>
-      <pubDate>Mon, 16 Jun 2025 12:00:00 GMT</pubDate>
+      <title>Wellness Center Exercise Classes</title>
+      <link>Clinic Calendar</link>
+      <description> Wellness Center exercise classes for members only: Chair Exercises M, W, F, 9-10am | Water Aerobics T, TH, 11:30am-12:30pm | Yoga M, 5:15-6:15pm & TH 12:10pm-12:50pm | Functional Fitness Class, ages 55+, T, TH, 2:30-3pm in Gymnasium. For more information, call 918-332-4327.</description>
+      <pubDate>Thursday, 05 February 2026 12:00:00 GMT</pubDate>
     </item>
 
     <item>
-      <title>10 Early Signs &amp; Symptoms of Alzheimer's &amp; Dementia</title>
-      <link>https://www.alz.org/alzheimers-dementia/10_signs</link>
-      <guid isPermaLink="false">early-signs-alzheimers-dementia-june-2025</guid>
-      <description><![CDATA[
-        <p>Memory loss disrupting daily life may indicate Alzheimer's or dementia. Recognize these early signs and schedule an appointment with your doctor if noticed.</p>
-
-        <ol>
-          <li><strong>Memory loss disrupting daily life</strong></li>
-          <li><strong>Challenges in planning or solving problems</strong></li>
-          <li><strong>Difficulty completing familiar tasks</strong></li>
-          <li><strong>Confusion with time or place</strong></li>
-          <li><strong>Trouble understanding visual images and spatial relationships</strong></li>
-          <li><strong>New problems with words in speaking or writing</strong></li>
-          <li><strong>Misplacing things and losing ability to retrace steps</strong></li>
-          <li><strong>Decreased or poor judgment</strong></li>
-          <li><strong>Withdrawal from work or social activities</strong></li>
-          <li><strong>Changes in mood and personality</strong></li>
-        </ol>
-
-        <p>If you or a loved one shows these symptoms, consult a healthcare professional promptly.</p>
-      ]]></description>
-      <pubDate>Mon, 16 Jun 2025 12:00:00 GMT</pubDate>
+      <title>Wellness Center Gymnasium</title>
+      <link>Clinic Calendar</link>
+      <description>Pick Up Basketball for members age 16 and older. Located in the Wellness Center Gymnasium, every Monday evening from 5:30-7:30pm. For more information, call 918-332-4327.</description>
+      <pubDate>Thursday, 05 February 2026 12:00:00 GMT</pubDate>
     </item>
 
     <item>
-      <title>10 Healthy Habits for Your Brain</title>
-      <link>https://www.alz.org/healthyhabits</link>
-      <guid isPermaLink="false">healthy-habits-for-brain-june-2025</guid>
-      <description><![CDATA[
-        <p>Adopting these healthy habits can significantly lower your risk of cognitive decline and dementia, especially important for individuals with a family history.</p>
-
-        <ul>
-          <li>Challenge your mind with new activities and learning.</li>
-          <li>Stay in school or continue education.</li>
-          <li>Protect your head to avoid brain injury.</li>
-          <li>Control blood pressure through medication and healthy habits.</li>
-          <li>Eat a balanced diet rich in healthy foods.</li>
-          <li>Be smoke-free to lower cognitive decline risk.</li>
-          <li>Manage diabetes through a healthy lifestyle.</li>
-          <li>Maintain a healthy weight to support brain health.</li>
-          <li>Get moving with regular exercise.</li>
-          <li>Sleep well, prioritizing quality sleep.</li>
-        </ul>
-
-        <p>Visit <a href="https://www.alz.org/healthyhabits">alz.org/healthyhabits</a> for more tips and information.</p>
-      ]]></description>
-      <pubDate>Mon, 16 Jun 2025 12:00:00 GMT</pubDate>
-    </item>
-
+      <title>Quit Smoking</title>
+      <link>Smoking Cessation</link>
+      <description> Cigarette smoking is more common among American Indian and Alaska Native (AI/AN) people than almost any other racial or ethnic group in the United States.  It’s never too late to quit smoking. Quitting smoking now improves your health and reduces your risk of heart disease, cancer, lung disease, and other smoking-related illnesses. For help with quitting, talk to your provider or contact a Public Health Nurse at (918) 332-4343 or (918) 332-4306.</description>
+       <pubDate>Thursday, 05 February 2026 12:00:00 GMT</pubDate>
+     </item>
+ 
     <item>
-      <title>Diabetes Focus Group</title>
-      <link>https://nthsclinic.com/clinic-calendar</link>
-      <guid isPermaLink="false">healthy-habits-for-brain-june-2025</guid>
-      <description>Live well with diabetes. Learn tools for success. Real solutions for real results. Learn how to gain control. For more information, call (918) 332-4344.</description>
-      <pubDate>Mon, 11 Aug 2025 12:00:00 GMT</pubDate>
+      <title>Clinic Closed</title>
+      <link>Clinic Calendar</link>
+      <description> NTHS Clinic and Wellness Center will be closed Monday, February 16, 2026 in observance of Presidents Day.</description>
+      <pubDate>Thursday, 05 February 2026 12:00:00 GMT</pubDate>
     </item>
-
-    <item>
-      <title>Smoking Cessation Class</title>
-      <link>https://nthsclinic.com/clinic-calendar</link>
-      <guid isPermaLink="false">healthy-habits-for-brain-june-2025</guid>
-      <description>Need help to QUIT smoking? Attend a Smoking Cessation Class. For more information, call (918) 332-4343, (918) 332-4306, or (918) 332-2522.</description>
-      <pubDate>Mon, 11 Aug 2025 12:00:00 GMT</pubDate>
-    </item>
-
-    <item>
-      <title>Medicare Part D NTHS Health Fair</title>
-      <link>https://nthsclinic.com/clinic-calendar</link>
-      <guid isPermaLink="false">healthy-habits-for-brain-june-2025</guid>
-      <description> Medicare Part D NTHS Health Fair, October 10, 9am-1pm. FREE Lunch, resource information, and door prizes.</description>
-      <pubDate>Mon, 11 Aug 2025 12:00:00 GMT</pubDate>
-    </item>    
   </channel>
 </rss>
