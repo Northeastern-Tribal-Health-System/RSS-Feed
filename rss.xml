@@ -13,37 +13,37 @@
 
     <item>
       <title>Wellness Center Exercise Classes</title>
-      <link>Clinic Calendar</link>
-      <description> Wellness Center exercise classes for members only: Chair Exercises M, W, F, 9-10am | Water Aerobics T, TH, 11:30am-12:30pm | Water Aerobics T, W, 5:15-6:15pm |Yoga M, 5:15-6:15pm &amp; TH 12:10pm-12:50pm | Functional Fitness Class, ages 55+, T, TH, 2:30-3pm in Gymnasium. For more information, call 918-332-4327.</description>
-      <pubDate>Monday, 09 March 2026 12:00:00 GMT</pubDate>
+      <link>https://nthsclinic.com/clinic-calendar</link>
+      <description>Wellness Center exercise classes for members only: Chair Exercises M, W, F, 9-10am | Water Aerobics T, TH, 11:30am-12:30pm | Water Aerobics T, W, 5:15-6:15pm | Yoga M, 5:15-6:15pm &amp; TH 12:10pm-12:50pm | Functional Fitness Class, ages 55+, T, TH, 2:30-3pm in Gymnasium. For more information, call 918-332-4327.</description>
+      <pubDate>Mon, 09 Mar 2026 12:00:00 GMT</pubDate>
     </item>
 
     <item>
       <title>Wellness Center Gymnasium</title>
-      <link>Clinic Calendar</link>
+      <link>https://nthsclinic.com/clinic-calendar</link>
       <description>Pick Up Basketball for members age 16 and older. Located in the Wellness Center Gymnasium, every Monday evening from 5:30-7:30pm. For more information, call 918-332-4327.</description>
-      <pubDate>Thursday, 05 February 2026 12:00:00 GMT</pubDate>
+      <pubDate>Thu, 05 Feb 2026 12:00:00 GMT</pubDate>
     </item>
 
     <item>
       <title>HLP Cooking Classes</title>
-      <link>Clinic Calendar</link>
-      <description> NTHS HLP Cooking Classes held twice a month in the HLP teaching kitchen located in the Wellness Center. For dates and time, or more information, visit our website, nthsclinic.com.</description>
-      <pubDate>Monday, 09 March 2026 12:00:00 GMT</pubDate>
-    <item>
-      
+      <link>https://nthsclinic.com/clinic-calendar</link>
+      <description>NTHS HLP Cooking Classes held twice a month in the HLP teaching kitchen located in the Wellness Center. For dates and time, or more information, visit our website, nthsclinic.com.</description>
+      <pubDate>Mon, 09 Mar 2026 12:00:00 GMT</pubDate>
+    </item>
+
     <item>
       <title>Quit Smoking</title>
-      <link>Smoking Cessation</link>
-      <description> Cigarette smoking is more common among American Indian and Alaska Native (AI/AN) people than almost any other racial or ethnic group in the United States.  It’s never too late to quit smoking. Quitting smoking now improves your health and reduces your risk of heart disease, cancer, lung disease, and other smoking-related illnesses. For help with quitting, talk to your provider or contact a Public Health Nurse at (918) 332-4343 or (918) 332-4306.</description>
-       <pubDate>Thursday, 05 February 2026 12:00:00 GMT</pubDate>
-     </item>
- 
+      <link>https://nthsclinic.com/smoking-cessation</link>
+      <description>Cigarette smoking is more common among American Indian and Alaska Native (AI/AN) people than almost any other racial or ethnic group in the United States. It's never too late to quit smoking. Quitting smoking now improves your health and reduces your risk of heart disease, cancer, lung disease, and other smoking-related illnesses. For help with quitting, talk to your provider or contact a Public Health Nurse at (918) 332-4343 or (918) 332-4306.</description>
+      <pubDate>Thu, 05 Feb 2026 12:00:00 GMT</pubDate>
+    </item>
+
     <item>
       <title>Clinic Closed</title>
-      <link>Clinic Calendar</link>
-      <description> NTHS Clinic and Wellness Center will be closed Friday, April 3, 2026 in observance of Good Friday.</description>
-      <pubDate>Monday, 09 March 2026 12:00:00 GMT</pubDate>
+      <link>https://nthsclinic.com/clinic-calendar</link>
+      <description>NTHS Clinic and Wellness Center will be closed Friday, April 3, 2026 in observance of Good Friday.</description>
+      <pubDate>Mon, 09 Mar 2026 12:00:00 GMT</pubDate>
     </item>
   </channel>
 </rss>
