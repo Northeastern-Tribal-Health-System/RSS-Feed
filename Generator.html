@@ -1,187 +1,192 @@
-import { useState, useEffect } from "react";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RFC 822 Date Generator – NTHS</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: #0d1117;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Courier New', monospace;
+      padding: 24px;
+    }
+    .wrap { width: 100%; max-width: 520px; }
+    .eyebrow {
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      color: #30a46c;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: #e6edf3;
+      letter-spacing: -0.5px;
+      line-height: 1.2;
+      margin-bottom: 12px;
+    }
+    h1 span { color: #30a46c; }
+    .subtitle {
+      font-size: 13px;
+      color: #7d8590;
+      line-height: 1.6;
+      margin-bottom: 36px;
+    }
+    .subtitle code {
+      color: #79c0ff;
+      background: #161b22;
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+    .card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #7d8590;
+      margin-bottom: 10px;
+    }
+    input[type="date"] {
+      width: 100%;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      color: #e6edf3;
+      font-size: 16px;
+      padding: 12px 14px;
+      outline: none;
+      font-family: 'Courier New', monospace;
+      cursor: pointer;
+      margin-bottom: 24px;
+      color-scheme: dark;
+    }
+    .output {
+      background: #0d1117;
+      border: 1px solid rgba(48,164,108,0.27);
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-size: 15px;
+      color: #30a46c;
+      letter-spacing: 0.02em;
+      margin-bottom: 20px;
+      word-break: break-all;
+      min-height: 48px;
+    }
+    button {
+      width: 100%;
+      padding: 13px;
+      background: #238636;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      font-family: 'Courier New', monospace;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button.copied { background: #1a4731; }
+    .hint {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      padding: 18px 20px;
+      margin-bottom: 20px;
+    }
+    .hint-label {
+      font-size: 11px;
+      color: #7d8590;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .hint code { font-size: 13px; color: #79c0ff; line-height: 1.8; }
+    .hint code span { color: #30a46c; }
+    .footer { text-align: center; font-size: 11px; color: #484f58; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="eyebrow">RSS 2.0 / RFC 822</div>
+    <h1>Date Format<br><span>Generator</span></h1>
+    <p class="subtitle">
+      Pick a date — get a valid <code>&lt;pubDate&gt;</code> string ready to paste.
+    </p>
 
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    <div class="card">
+      <label for="datepicker">Select Date</label>
+      <input type="date" id="datepicker" />
 
-function toRFC822(date) {
-  const d = new Date(date + "T12:00:00Z");
-  const day = DAYS[d.getUTCDay()];
-  const dd = String(d.getUTCDate()).padStart(2, "0");
-  const mon = MONTHS[d.getUTCMonth()];
-  const yyyy = d.getUTCFullYear();
-  return `${day}, ${dd} ${mon} ${yyyy} 12:00:00 -0500`;
-}
+      <label>RFC 822 Output</label>
+      <div class="output" id="output"></div>
 
-function today() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-export default function RFC822Tool() {
-  const [date, setDate] = useState(today());
-  const [copied, setCopied] = useState(false);
-  const output = toRFC822(date);
-
-  function copy() {
-    navigator.clipboard.writeText(output);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
-  }
-
-  return (
-    <div style={{
-      minHeight: "100vh",
-      background: "#0d1117",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontFamily: "'Courier New', monospace",
-      padding: "24px",
-    }}>
-      <div style={{
-        width: "100%",
-        maxWidth: "520px",
-      }}>
-        {/* Header */}
-        <div style={{ marginBottom: "36px" }}>
-          <div style={{
-            fontSize: "11px",
-            letterSpacing: "0.2em",
-            color: "#30a46c",
-            textTransform: "uppercase",
-            marginBottom: "8px",
-          }}>
-            RSS 2.0 / RFC 822
-          </div>
-          <h1 style={{
-            margin: 0,
-            fontSize: "28px",
-            fontWeight: "700",
-            color: "#e6edf3",
-            letterSpacing: "-0.5px",
-            lineHeight: 1.2,
-          }}>
-            Date Format<br />
-            <span style={{ color: "#30a46c" }}>Generator</span>
-          </h1>
-          <p style={{
-            margin: "12px 0 0",
-            fontSize: "13px",
-            color: "#7d8590",
-            lineHeight: 1.6,
-          }}>
-            Pick a date — get a valid <code style={{ color: "#79c0ff", background: "#161b22", padding: "1px 5px", borderRadius: "3px" }}>&lt;pubDate&gt;</code> string ready to paste.
-          </p>
-        </div>
-
-        {/* Card */}
-        <div style={{
-          background: "#161b22",
-          border: "1px solid #30363d",
-          borderRadius: "12px",
-          padding: "28px",
-        }}>
-          {/* Date Picker */}
-          <label style={{
-            display: "block",
-            fontSize: "11px",
-            letterSpacing: "0.15em",
-            textTransform: "uppercase",
-            color: "#7d8590",
-            marginBottom: "10px",
-          }}>
-            Select Date
-          </label>
-          <input
-            type="date"
-            value={date}
-            onChange={e => setDate(e.target.value)}
-            style={{
-              width: "100%",
-              boxSizing: "border-box",
-              background: "#0d1117",
-              border: "1px solid #30363d",
-              borderRadius: "8px",
-              color: "#e6edf3",
-              fontSize: "16px",
-              padding: "12px 14px",
-              outline: "none",
-              fontFamily: "'Courier New', monospace",
-              cursor: "pointer",
-              marginBottom: "24px",
-            }}
-          />
-
-          {/* Output */}
-          <label style={{
-            display: "block",
-            fontSize: "11px",
-            letterSpacing: "0.15em",
-            textTransform: "uppercase",
-            color: "#7d8590",
-            marginBottom: "10px",
-          }}>
-            RFC 822 Output
-          </label>
-          <div style={{
-            background: "#0d1117",
-            border: "1px solid #30a46c44",
-            borderRadius: "8px",
-            padding: "14px 16px",
-            fontSize: "15px",
-            color: "#30a46c",
-            letterSpacing: "0.02em",
-            marginBottom: "20px",
-            wordBreak: "break-all",
-          }}>
-            {output}
-          </div>
-
-          {/* Copy Button */}
-          <button
-            onClick={copy}
-            style={{
-              width: "100%",
-              padding: "13px",
-              background: copied ? "#1a4731" : "#238636",
-              border: "none",
-              borderRadius: "8px",
-              color: "#fff",
-              fontSize: "14px",
-              fontFamily: "'Courier New', monospace",
-              fontWeight: "700",
-              letterSpacing: "0.05em",
-              cursor: "pointer",
-              transition: "background 0.2s",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px",
-            }}
-          >
-            {copied ? "✓  Copied to clipboard!" : "⧉  Copy to clipboard"}
-          </button>
-        </div>
-
-        {/* Usage hint */}
-        <div style={{
-          marginTop: "24px",
-          background: "#161b22",
-          border: "1px solid #30363d",
-          borderRadius: "10px",
-          padding: "18px 20px",
-        }}>
-          <div style={{ fontSize: "11px", color: "#7d8590", letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "10px" }}>
-            Paste into your RSS XML as:
-          </div>
-          <code style={{ fontSize: "13px", color: "#79c0ff", lineHeight: 1.8 }}>
-            &lt;pubDate&gt;<span style={{ color: "#30a46c" }}>{output}</span>&lt;/pubDate&gt;
-          </code>
-        </div>
-
-        <div style={{ marginTop: "20px", textAlign: "center", fontSize: "11px", color: "#484f58" }}>
-          Built for NTHS RSS Feed · Time defaults to 12:00:00 CDT (-0500)
-        </div>
-      </div>
+      <button id="copybtn" onclick="copyOutput()">⧉&nbsp; Copy to clipboard</button>
     </div>
-  );
-}
+
+    <div class="hint">
+      <div class="hint-label">Paste into your RSS XML as:</div>
+      <code>&lt;pubDate&gt;<span id="hint-output"></span>&lt;/pubDate&gt;</code>
+    </div>
+
+    <div class="footer">Built for NTHS RSS Feed &middot; Time defaults to 12:00:00 CDT (-0500)</div>
+  </div>
+
+  <script>
+    const DAYS   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+    const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+    function toRFC822(dateStr) {
+      const d = new Date(dateStr + "T12:00:00Z");
+      const day = DAYS[d.getUTCDay()];
+      const dd  = String(d.getUTCDate()).padStart(2, "0");
+      const mon = MONTHS[d.getUTCMonth()];
+      const yr  = d.getUTCFullYear();
+      return `${day}, ${dd} ${mon} ${yr} 12:00:00 -0500`;
+    }
+
+    function todayStr() {
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    function updateOutput() {
+      const val = document.getElementById("datepicker").value;
+      if (!val) return;
+      const result = toRFC822(val);
+      document.getElementById("output").textContent = result;
+      document.getElementById("hint-output").textContent = result;
+    }
+
+    function copyOutput() {
+      const text = document.getElementById("output").textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById("copybtn");
+        btn.textContent = "✓  Copied to clipboard!";
+        btn.classList.add("copied");
+        setTimeout(() => {
+          btn.textContent = "⧉\u00A0 Copy to clipboard";
+          btn.classList.remove("copied");
+        }, 1800);
+      });
+    }
+
+    // Init
+    document.getElementById("datepicker").value = todayStr();
+    document.getElementById("datepicker").addEventListener("change", updateOutput);
+    updateOutput();
+  </script>
+</body>
+</html>
