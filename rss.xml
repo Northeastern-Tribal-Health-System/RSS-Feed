@@ -3,40 +3,38 @@
   <channel>
     <title>Northeastern Tribal Health System RSS</title>
     <link>https://northeastern-tribal-health-system.github.io/RSS-Feed/</link>
-    <atom:link href="https://northeastern-tribal-health-system.github.io/RSS-Feed/rss.xml"
-               rel="self"
-               type="application/rss+xml"/>
+    <atom:link href="https://northeastern-tribal-health-system.github.io/RSS-Feed/rss.xml" rel="self" type="application/rss+xml"/>
     <description>NTHS RSS Feed.</description>
     <pubDate>Mon, 16 Jun 2025 12:00:00 GMT</pubDate>
     <lastBuildDate>Mon, 16 Jun 2025 12:00:00 GMT</lastBuildDate>
     <ttl>60</ttl>
-
     <item>
       <title>Wellness Center Exercise Classes</title>
       <link>https://nthsclinic.com/clinic-calendar</link>
       <description>Wellness Center exercise classes for members only: Chair Exercises M, W, F, 9-10am | Water Aerobics T, TH, 11:30am-12:30pm | Water Aerobics T, W, 5:15-6:15pm | Yoga M, 5:15-6:15pm &amp; TH 12:10pm-12:50pm | Functional Fitness Class, ages 55+, T, TH, 2:30-3pm in Gymnasium. For more information, call 918-332-4327.</description>
       <pubDate>Mon, 09 Mar 2026 12:00:00 GMT</pubDate>
+      <guid isPermaLink="false">nths-wellness-exercise-classes-2026-03-09</guid>
     </item>
-
     <item>
       <title>Wellness Center Gymnasium</title>
       <link>https://nthsclinic.com/clinic-calendar</link>
       <description>Pick Up Basketball for members age 16 and older. Located in the Wellness Center Gymnasium, every Monday evening from 5:30-7:30pm. For more information, call 918-332-4327.</description>
       <pubDate>Thu, 05 Feb 2026 12:00:00 GMT</pubDate>
+      <guid isPermaLink="false">nths-wellness-gymnasium-basketball-2026-02-05</guid>
     </item>
-
     <item>
       <title>HLP Cooking Classes</title>
       <link>https://nthsclinic.com/clinic-calendar</link>
       <description>NTHS HLP Cooking Classes held twice a month in the HLP teaching kitchen located in the Wellness Center. For dates and time, or more information, visit our website, nthsclinic.com.</description>
       <pubDate>Mon, 09 Mar 2026 12:00:00 GMT</pubDate>
+      <guid isPermaLink="false">nths-hlp-cooking-classes-2026-03-09</guid>
     </item>
-
     <item>
       <title>Quit Smoking</title>
       <link>https://nthsclinic.com/smoking-cessation</link>
       <description>Cigarette smoking is more common among American Indian and Alaska Native (AI/AN) people than almost any other racial or ethnic group in the United States. It's never too late to quit smoking. Quitting smoking now improves your health and reduces your risk of heart disease, cancer, lung disease, and other smoking-related illnesses. For help with quitting, talk to your provider or contact a Public Health Nurse at (918) 332-4343 or (918) 332-4306.</description>
       <pubDate>Thu, 05 Feb 2026 12:00:00 GMT</pubDate>
+      <guid isPermaLink="false">nths-quit-smoking-2026-02-05</guid>
     </item>
   </channel>
 </rss>
