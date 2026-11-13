@@ -8,11 +8,11 @@
   NTHS lobby display for the UniFi Display Cast Pro (Web Mode).
 
   Layout (designed at 1920x1080, scales to whatever the player outputs):
-    - Video zone, top left, 1280x720. Black when no source is set, so a hardware
+    - Video zone, top left, 1600x900 (16:9). Black when no source is set, so a hardware
       picture-in-picture window from a TV box can sit exactly on top of it.
-    - Info strip under the video: name, message, clock and date
-    - Right panel, 640x990: Miami, OK weather (current conditions and 7-period forecast)
-    - Announcements ticker along the bottom, pulled from the NTHS RSS feed on GitHub
+    - Info strip under the video, 1600x100: name, message, clock and date
+    - Right panel, 320x1000: Miami, OK weather (current conditions and 7-period forecast)
+    - Announcements ticker along the bottom, 1920x80, pulled from the NTHS RSS feed on GitHub
 
   Everything is set with URL parameters, so the page never needs editing. Example:
     signage.html?msg=Welcome%20to%20the%20Longhouse
@@ -38,6 +38,8 @@
     msg          Message in the info strip
     tz           Time zone for the clocks (default: America/Chicago)
     reloadhour   Hour (0-23) for a full page reload each day (default: 3, -1 = never)
+    selfupdate   Minutes between checks for a newer version of this page on GitHub; reloads
+                 automatically when one is found (default: 10, 0 = never)
 -->
 <style>
   :root {
@@ -52,7 +54,7 @@
   html, body {
     margin: 0;
     height: 100%;
-    background: #000;
+    background: var(--bg);
     overflow: hidden;
     cursor: none;
   }
@@ -71,13 +73,21 @@
     overflow: hidden;
   }
 
+  /*
+    Layout at 1920x1080:
+      video   0,0      1600 x 900  (16:9)
+      info    0,900    1600 x 100
+      side    1600,0    320 x 1000
+      ticker  0,1000   1920 x 80
+  */
+
   /* Video zone */
   #video {
     position: absolute;
     left: 0;
     top: 0;
-    width: 1280px;
-    height: 720px;
+    width: 1600px;
+    height: 900px;
     background: #000;
     overflow: hidden;
   }
@@ -93,56 +103,68 @@
   #info {
     position: absolute;
     left: 0;
-    top: 720px;
-    width: 1280px;
-    height: 270px;
+    top: 900px;
+    width: 1600px;
+    height: 100px;
     box-sizing: border-box;
-    padding: 0 56px;
+    padding: 0 40px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 40px;
+    gap: 32px;
     background: linear-gradient(135deg, var(--panel) 0%, var(--bg) 100%);
-    border-top: 6px solid var(--accent);
+    border-top: 4px solid var(--accent);
   }
-  #info-text { min-width: 0; }
+  #info-text {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+  }
   #info-title {
-    font-size: 46px;
+    font-size: 32px;
     font-weight: 700;
-    line-height: 1.15;
-    margin: 0 0 14px 0;
+    line-height: 1.1;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   #info-msg {
-    font-size: 32px;
+    font-size: 22px;
     color: var(--muted);
-    line-height: 1.3;
+    line-height: 1.2;
     margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   #clock {
-    text-align: right;
     flex: 0 0 auto;
+    display: flex;
+    align-items: baseline;
+    gap: 20px;
   }
   #clock-time {
-    font-size: 88px;
+    font-size: 52px;
     font-weight: 300;
     line-height: 1;
     font-variant-numeric: tabular-nums;
   }
   #clock-date {
-    font-size: 30px;
+    font-size: 24px;
     color: var(--accent-bright);
-    margin-top: 12px;
   }
 
   /* Right panel */
   #side {
     position: absolute;
-    left: 1280px;
+    left: 1600px;
     top: 0;
-    width: 640px;
-    height: 990px;
+    width: 320px;
+    height: 1000px;
     overflow: hidden;
-    border-left: 6px solid var(--accent);
+    border-left: 4px solid var(--accent);
     box-sizing: border-box;
     background: linear-gradient(160deg, var(--panel) 0%, var(--bg) 100%);
     color: var(--text);
@@ -158,106 +180,121 @@
   .wx {
     position: absolute;
     inset: 0;
-    padding: 26px 30px 20px;
+    padding: 20px 16px 14px;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
   }
   .wx-head {
-    font-size: 30px;
+    font-size: 21px;
     font-weight: 700;
-    letter-spacing: 2px;
+    letter-spacing: 1.5px;
     text-transform: uppercase;
     color: var(--accent-bright);
-    padding-bottom: 14px;
-    margin: 0 0 18px 0;
+    padding-bottom: 10px;
+    margin: 0 0 14px 0;
     border-bottom: 3px solid var(--accent);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .wx-now {
     display: flex;
     align-items: center;
-    gap: 24px;
-    margin-bottom: 22px;
+    gap: 12px;
   }
-  .wx-now-icon svg { width: 130px; height: 130px; display: block; }
+  .wx-now-icon svg { width: 84px; height: 84px; display: block; }
   .wx-now-temp {
-    font-size: 120px;
+    font-size: 84px;
     font-weight: 300;
     line-height: 1;
   }
-  .wx-now-text { min-width: 0; }
+  .wx-now-text {
+    margin: 6px 0 16px 0;
+    min-width: 0;
+  }
   .wx-now-label {
-    font-size: 22px;
-    letter-spacing: 2px;
+    font-size: 16px;
+    letter-spacing: 1.5px;
     text-transform: uppercase;
     color: var(--muted);
   }
   .wx-now-desc {
-    font-size: 30px;
-    margin-top: 6px;
+    font-size: 22px;
+    margin-top: 2px;
     color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .wx-list {
     flex: 1;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    justify-content: space-between;
+    gap: 8px;
     overflow: hidden;
   }
   .wx-row {
-    flex: 0 0 auto;
-    height: 80px;
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: 104px;
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 0 18px;
+    gap: 10px;
+    padding: 0 10px 0 10px;
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.06);
     border-left: 4px solid var(--accent);
   }
+  .wx-row .i svg { width: 44px; height: 44px; display: block; }
   .wx-row .n { flex: 1; min-width: 0; }
   .wx-row .n b {
     display: block;
-    font-size: 28px;
+    font-size: 20px;
     line-height: 1.2;
-  }
-  .wx-row .n small {
-    display: block;
-    font-size: 21px;
-    color: var(--muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .wx-row .i svg { width: 52px; height: 52px; display: block; }
-  .wx-row .p {
-    width: 62px;
-    font-size: 21px;
-    text-align: right;
+  .wx-row .n small {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    font-size: 16px;
+    line-height: 1.2;
     color: var(--muted);
+    overflow: hidden;
+  }
+  .wx-row .tp {
+    flex: 0 0 auto;
+    text-align: right;
   }
   .wx-row .t {
-    width: 96px;
-    font-size: 38px;
+    font-size: 30px;
     font-weight: 700;
-    text-align: right;
+    line-height: 1.1;
     color: var(--accent-bright);
+  }
+  .wx-row .p {
+    font-size: 15px;
+    color: var(--muted);
   }
   .wx-foot {
     text-align: center;
-    font-size: 18px;
+    font-size: 14px;
     color: var(--muted);
-    margin-top: 12px;
+    margin-top: 10px;
   }
 
   /* Ticker */
   #ticker {
     position: absolute;
     left: 0;
-    top: 990px;
+    top: 1000px;
     width: 1920px;
-    height: 90px;
+    height: 80px;
     background: var(--ticker-bg);
     border-top: 4px solid var(--accent);
     box-sizing: border-box;
@@ -265,9 +302,9 @@
   }
   #ticker-label {
     flex: 0 0 auto;
-    padding: 0 34px;
+    padding: 0 30px;
     background: var(--accent);
-    font-size: 28px;
+    font-size: 24px;
     font-weight: 700;
     letter-spacing: 2px;
     text-transform: uppercase;
@@ -288,7 +325,7 @@
     display: flex;
     align-items: center;
     white-space: nowrap;
-    font-size: 38px;
+    font-size: 34px;
     will-change: transform;
   }
   .t-title {
@@ -346,7 +383,8 @@
     title: "Northeastern Tribal Health System",
     msg: "Welcome! Please check in at the front desk.",
     tz: "America/Chicago",
-    reloadhour: "3"
+    reloadhour: "3",
+    selfupdate: "10"
   };
   var extra = window.SIGNAGE_CONFIG || {};
   Object.keys(extra).forEach(function (k) { cfg[k] = String(extra[k]); });
@@ -559,14 +597,14 @@
     var now = el("div", "wx-now");
     var nowIcon = el("div", "wx-now-icon");
     var nowTemp = el("div", "wx-now-temp", "--");
+    now.appendChild(nowIcon);
+    now.appendChild(nowTemp);
+    box.appendChild(now);
     var nowText = el("div", "wx-now-text");
     nowText.appendChild(el("div", "wx-now-label", "Right now"));
     var nowDesc = el("div", "wx-now-desc", "");
     nowText.appendChild(nowDesc);
-    now.appendChild(nowIcon);
-    now.appendChild(nowTemp);
-    now.appendChild(nowText);
-    box.appendChild(now);
+    box.appendChild(nowText);
 
     var list = el("div", "wx-list");
     box.appendChild(list);
@@ -575,6 +613,13 @@
     side.appendChild(box);
 
     wx = { nowIcon: nowIcon, nowTemp: nowTemp, nowDesc: nowDesc, list: list, foot: foot };
+  }
+
+  // "Saturday Night" -> "Sat Night" so period names fit the narrow column
+  function shortName(name) {
+    return String(name || "").replace(/\b(Sun|Mon|Tues|Wednes|Thurs|Fri|Satur)day Night\b/, function (m, d) {
+      return { Sun: "Sun", Mon: "Mon", Tues: "Tue", Wednes: "Wed", Thurs: "Thu", Fri: "Fri", Satur: "Sat" }[d] + " Night";
+    });
   }
 
   function renderWeather(data, live) {
@@ -587,19 +632,21 @@
     wx.list.innerHTML = "";
     (data.periods || []).forEach(function (p) {
       var row = el("div", "wx-row");
-      var n = el("div", "n");
-      n.appendChild(el("b", "", p.name));
-      n.appendChild(el("small", "", p.desc));
-      row.appendChild(n);
       var ic = el("div", "i");
       ic.innerHTML = iconFor(p.desc, p.isDay);
       row.appendChild(ic);
-      row.appendChild(el("div", "p", p.pop ? p.pop + "%" : ""));
-      row.appendChild(el("div", "t", p.temp + "\u00B0" + (p.unit || "")));
+      var n = el("div", "n");
+      n.appendChild(el("b", "", shortName(p.name)));
+      n.appendChild(el("small", "", p.desc));
+      row.appendChild(n);
+      var tp = el("div", "tp");
+      tp.appendChild(el("div", "t", p.temp + "\u00B0"));
+      if (p.pop) { tp.appendChild(el("div", "p", p.pop + "%")); }
+      row.appendChild(tp);
       wx.list.appendChild(row);
     });
     var when = data.at ? fmtTime(new Date(data.at)) : "";
-    wx.foot.textContent = live ? "Updated " + when + " \u00B7 National Weather Service"
+    wx.foot.textContent = live ? "NWS \u00B7 updated " + when
       : "Forecast offline \u00B7 last updated " + when;
   }
 
@@ -760,6 +807,27 @@
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
+
+  // ---------- Pick up new versions of this page automatically ----------
+  // Bump PAGE_VERSION whenever this file changes. Players compare it against the
+  // copy on GitHub and reload (with a cache-busting parameter) when it differs.
+  var PAGE_VERSION = "2026-11-13.4";
+  var su = num(cfg.selfupdate, 10);
+  if (su > 0 && location.protocol.indexOf("http") === 0) {
+    setInterval(function () {
+      fetch(location.pathname + "?_=" + Date.now(), { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.text() : ""; })
+        .then(function (t) {
+          var m = t.match(/var PAGE_VERSION = "([^"]+)"/);
+          if (m && m[1] !== PAGE_VERSION) {
+            var q = new URLSearchParams(location.search);
+            q.set("_r", String(Date.now()));
+            location.replace(location.pathname + "?" + q.toString());
+          }
+        })
+        .catch(function () {});
+    }, su * 60000);
+  }
 
   // ---------- Daily full reload for long-run stability ----------
   var rh = parseInt(cfg.reloadhour, 10);
