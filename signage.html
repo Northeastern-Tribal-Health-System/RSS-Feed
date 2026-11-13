@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NTHS Lobby Display</title>
+<!--
+  NTHS lobby display for the UniFi Display Cast Pro (Web Mode).
+
+  Layout (designed at 1920x1080, scales to whatever the player outputs):
+    - Video zone, top left, 1280x720. Black when no source is set, so a hardware
+      picture-in-picture window from a TV box can sit exactly on top of it.
+    - Info strip under the video: name, message, clock and date
+    - Right panel, 640x990: Miami, OK weather (analog clock, current temp, 7-period forecast)
+    - Announcements ticker along the bottom, pulled from the NTHS RSS feed on GitHub
+
+  Everything is set with URL parameters, so the page never needs editing. Example:
+    signage.html?msg=Welcome%20to%20the%20Longhouse
+
+  Parameters (all optional):
+    rss          RSS or Atom feed URL (default: the NTHS feed on GitHub Pages)
+    label        Ticker label text (default: Announcements)
+    speed        Ticker speed in pixels per second (default: 110)
+    rssrefresh   Minutes between feed reloads (default: 10)
+    wx           weather.gov grid point, OFFICE/X,Y (default: TSA/81,137 = Miami, OK)
+    wxname       Weather panel heading (default: Miami, OK Weather)
+    wxrefresh    Minutes between forecast reloads (default: 30)
+    web          URL to show in the right panel instead of the weather (the site must allow framing)
+    webzoom      Scale for that page, e.g. 0.75 (default: 1)
+    webrefresh   Minutes between reloads of that page (default: 15, 0 = never)
+    yt           YouTube video ID, for content you have rights to show
+    ytchannel    YouTube channel ID (UC...), plays whatever that channel has live
+    ytlist       YouTube playlist ID
+    stream       HLS (.m3u8) or MP4 URL, e.g. from an encoder
+    mute         1 = muted (default, needed for autoplay), 0 = sound on
+    videorefresh Minutes between video reloads to recover a stalled stream (default: 240, 0 = never)
+    title        Heading in the info strip
+    msg          Message in the info strip
+    tz           Time zone for the clocks (default: America/Chicago)
+    reloadhour   Hour (0-23) for a full page reload each day (default: 3, -1 = never)
+-->
+<style>
+  :root {
+    --bg: #13241a;
+    --panel: #1b3324;
+    --accent: #4f7350;
+    --accent-bright: #9fd3a0;
+    --text: #f3f6f1;
+    --muted: #b8c8ba;
+    --ticker-bg: #0a130e;
+  }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+    cursor: none;
+  }
+  body {
+    font-family: "Segoe UI", Roboto, "Open Sans", "Helvetica Neue", Arial, sans-serif;
+    color: var(--text);
+  }
+  #stage {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1920px;
+    height: 1080px;
+    transform-origin: 0 0;
+    background: var(--bg);
+    overflow: hidden;
+  }
+
+  /* Video zone */
+  #video {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1280px;
+    height: 720px;
+    background: #000;
+    overflow: hidden;
+  }
+  #video iframe, #video video {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+    background: #000;
+  }
+
+  /* Info strip */
+  #info {
+    position: absolute;
+    left: 0;
+    top: 720px;
+    width: 1280px;
+    height: 270px;
+    box-sizing: border-box;
+    padding: 0 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 40px;
+    background: linear-gradient(135deg, var(--panel) 0%, var(--bg) 100%);
+    border-top: 6px solid var(--accent);
+  }
+  #info-text { min-width: 0; }
+  #info-title {
+    font-size: 46px;
+    font-weight: 700;
+    line-height: 1.15;
+    margin: 0 0 14px 0;
+  }
+  #info-msg {
+    font-size: 32px;
+    color: var(--muted);
+    line-height: 1.3;
+    margin: 0;
+  }
+  #clock {
+    text-align: right;
+    flex: 0 0 auto;
+  }
+  #clock-time {
+    font-size: 88px;
+    font-weight: 300;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  #clock-date {
+    font-size: 30px;
+    color: var(--accent-bright);
+    margin-top: 12px;
+  }
+
+  /* Right panel */
+  #side {
+    position: absolute;
+    left: 1280px;
+    top: 0;
+    width: 640px;
+    height: 990px;
+    overflow: hidden;
+    border-left: 6px solid var(--accent);
+    box-sizing: border-box;
+    background: linear-gradient(to top, #3a7bd5, #00d2ff);
+    color: #fff;
+  }
+  #side iframe {
+    border: 0;
+    display: block;
+    transform-origin: 0 0;
+    background: #fff;
+  }
+
+  /* Weather */
+  .wx {
+    position: absolute;
+    inset: 0;
+    padding: 26px 30px 20px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+  }
+  .wx-head {
+    font-size: 40px;
+    font-weight: 700;
+    text-align: center;
+    margin: 0 0 16px 0;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  }
+  .wx-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+  .wx-clock svg {
+    width: 210px;
+    height: 210px;
+    display: block;
+  }
+  .wx-now {
+    flex: 1;
+    min-width: 0;
+    text-align: right;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  }
+  .wx-now-label {
+    font-size: 24px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    opacity: 0.9;
+  }
+  .wx-now-temp {
+    font-size: 112px;
+    font-weight: 300;
+    line-height: 1;
+  }
+  .wx-now-desc {
+    font-size: 28px;
+    margin-top: 6px;
+  }
+  .wx-list {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: hidden;
+  }
+  .wx-row {
+    flex: 0 0 auto;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 18px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.16);
+  }
+  .wx-row .n { flex: 1; min-width: 0; }
+  .wx-row .n b {
+    display: block;
+    font-size: 25px;
+    line-height: 1.2;
+  }
+  .wx-row .n small {
+    display: block;
+    font-size: 19px;
+    opacity: 0.92;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .wx-row .i svg { width: 46px; height: 46px; display: block; }
+  .wx-row .p {
+    width: 60px;
+    font-size: 20px;
+    text-align: right;
+    opacity: 0.92;
+  }
+  .wx-row .t {
+    width: 92px;
+    font-size: 34px;
+    font-weight: 700;
+    text-align: right;
+  }
+  .wx-foot {
+    text-align: center;
+    font-size: 18px;
+    opacity: 0.85;
+    margin-top: 12px;
+  }
+
+  /* Ticker */
+  #ticker {
+    position: absolute;
+    left: 0;
+    top: 990px;
+    width: 1920px;
+    height: 90px;
+    background: var(--ticker-bg);
+    border-top: 4px solid var(--accent);
+    box-sizing: border-box;
+    display: flex;
+  }
+  #ticker-label {
+    flex: 0 0 auto;
+    padding: 0 34px;
+    background: var(--accent);
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    z-index: 1;
+  }
+  #ticker-window {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+  }
+  #ticker-track {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    font-size: 38px;
+    will-change: transform;
+  }
+  .t-title {
+    font-weight: 700;
+    color: var(--accent-bright);
+  }
+  .t-sep {
+    color: var(--accent);
+    padding: 0 40px;
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="video"></div>
+  <div id="info">
+    <div id="info-text">
+      <p id="info-title"></p>
+      <p id="info-msg"></p>
+    </div>
+    <div id="clock">
+      <div id="clock-time"></div>
+      <div id="clock-date"></div>
+    </div>
+  </div>
+  <div id="side"></div>
+  <div id="ticker">
+    <div id="ticker-label"></div>
+    <div id="ticker-window"><div id="ticker-track"></div></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- Settings ----------
+  var cfg = {
+    rss: "https://northeastern-tribal-health-system.github.io/RSS-Feed/rss.xml",
+    label: "Announcements",
+    speed: "110",
+    rssrefresh: "10",
+    wx: "TSA/81,137",
+    wxname: "Miami, OK Weather",
+    wxrefresh: "30",
+    web: "",
+    webzoom: "1",
+    webrefresh: "15",
+    yt: "",
+    ytchannel: "",
+    ytlist: "",
+    stream: "",
+    mute: "1",
+    videorefresh: "240",
+    title: "Northeastern Tribal Health System",
+    msg: "Welcome! Please check in at the front desk.",
+    tz: "America/Chicago",
+    reloadhour: "3"
+  };
+  var extra = window.SIGNAGE_CONFIG || {};
+  Object.keys(extra).forEach(function (k) { cfg[k] = String(extra[k]); });
+  new URLSearchParams(location.search).forEach(function (v, k) { cfg[k] = v; });
+
+  function num(v, fallback) {
+    var n = parseFloat(v);
+    return isFinite(n) ? n : fallback;
+  }
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) { e.className = cls; }
+    if (text !== undefined) { e.textContent = text; }
+    return e;
+  }
+  function store(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {}
+  }
+  function recall(key) {
+    try { return JSON.parse(localStorage.getItem(key) || "null"); } catch (e) { return null; }
+  }
+
+  // ---------- Scale the 1920x1080 stage to the screen ----------
+  var stage = $("stage");
+  function fit() {
+    var s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+    var dx = (window.innerWidth - 1920 * s) / 2;
+    var dy = (window.innerHeight - 1080 * s) / 2;
+    stage.style.transform = "translate(" + dx + "px," + dy + "px) scale(" + s + ")";
+  }
+  window.addEventListener("resize", fit);
+  fit();
+
+  // ---------- Time helpers (local time in cfg.tz, DST handled by the browser) ----------
+  function zoned(now) {
+    var parts = {};
+    try {
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: cfg.tz, hour: "numeric", minute: "numeric", second: "numeric", hour12: false
+      }).formatToParts(now).forEach(function (p) { parts[p.type] = p.value; });
+      return { h: parseInt(parts.hour, 10) % 24, m: parseInt(parts.minute, 10), s: parseInt(parts.second, 10) };
+    } catch (e) {
+      return { h: now.getHours(), m: now.getMinutes(), s: now.getSeconds() };
+    }
+  }
+  function fmtTime(d) {
+    try { return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: cfg.tz }); }
+    catch (e) { return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }); }
+  }
+  function fmtDate(d) {
+    try { return d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: cfg.tz }); }
+    catch (e) { return d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }); }
+  }
+
+  // ---------- Info strip and digital clock ----------
+  $("info-title").textContent = cfg.title;
+  $("info-msg").textContent = cfg.msg;
+  $("ticker-label").textContent = cfg.label;
+  function updateClock() {
+    var now = new Date();
+    $("clock-time").textContent = fmtTime(now);
+    $("clock-date").textContent = fmtDate(now);
+  }
+  updateClock();
+  setInterval(updateClock, 10000);
+
+  // ---------- Video zone ----------
+  var videoBox = $("video");
+
+  function youtubeSrc() {
+    var common = "autoplay=1&mute=" + (cfg.mute === "0" ? "0" : "1") +
+      "&controls=0&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&disablekb=1&fs=0";
+    if (cfg.yt) {
+      var id = encodeURIComponent(cfg.yt);
+      return "https://www.youtube.com/embed/" + id + "?" + common + "&loop=1&playlist=" + id;
+    }
+    if (cfg.ytchannel) {
+      return "https://www.youtube.com/embed/live_stream?channel=" + encodeURIComponent(cfg.ytchannel) + "&" + common;
+    }
+    if (cfg.ytlist) {
+      return "https://www.youtube.com/embed/videoseries?list=" + encodeURIComponent(cfg.ytlist) + "&" + common + "&loop=1";
+    }
+    return "";
+  }
+
+  function loadScript(src, cb) {
+    var s = document.createElement("script");
+    s.src = src;
+    s.onload = function () { cb(null); };
+    s.onerror = function () { cb(new Error("load failed")); };
+    document.head.appendChild(s);
+  }
+
+  var hlsInstance = null;
+  function startStream() {
+    videoBox.innerHTML = "";
+    if (hlsInstance) { try { hlsInstance.destroy(); } catch (e) {} hlsInstance = null; }
+    var v = document.createElement("video");
+    v.autoplay = true;
+    v.muted = cfg.mute !== "0";
+    v.loop = true;
+    v.playsInline = true;
+    v.setAttribute("playsinline", "");
+    videoBox.appendChild(v);
+    var url = cfg.stream;
+    var isHls = /\.m3u8(\?|$)/i.test(url);
+    if (!isHls || v.canPlayType("application/vnd.apple.mpegurl")) {
+      v.src = url;
+      v.play().catch(function () {});
+    } else {
+      loadScript("https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js", function (err) {
+        if (err || !window.Hls || !window.Hls.isSupported()) {
+          console.warn("HLS playback not supported on this player");
+          return;
+        }
+        hlsInstance = new window.Hls({ liveSyncDurationCount: 3 });
+        hlsInstance.loadSource(url);
+        hlsInstance.attachMedia(v);
+        hlsInstance.on(window.Hls.Events.MANIFEST_PARSED, function () { v.play().catch(function () {}); });
+        hlsInstance.on(window.Hls.Events.ERROR, function (evt, data) {
+          if (data && data.fatal) { setTimeout(startStream, 15000); }
+        });
+      });
+    }
+    v.addEventListener("error", function () { setTimeout(startStream, 15000); });
+    v.addEventListener("ended", function () { setTimeout(startStream, 2000); });
+  }
+
+  function startVideo() {
+    if (cfg.stream) { startStream(); return; }
+    videoBox.innerHTML = "";
+    var src = youtubeSrc();
+    if (!src) { return; } // stays black, ready for a hardware PiP window on top
+    var f = document.createElement("iframe");
+    f.src = src;
+    f.allow = "autoplay; encrypted-media; picture-in-picture";
+    f.referrerPolicy = "strict-origin-when-cross-origin";
+    f.title = "Video";
+    videoBox.appendChild(f);
+  }
+  startVideo();
+  var vr = num(cfg.videorefresh, 240);
+  if (vr > 0 && (cfg.stream || youtubeSrc())) { setInterval(startVideo, vr * 60000); }
+
+  // ---------- Right panel ----------
+  var side = $("side");
+
+  function startWeb() {
+    var z = num(cfg.webzoom, 1);
+    if (z <= 0) { z = 1; }
+    var w = side.clientWidth, h = side.clientHeight;
+    side.innerHTML = "";
+    var f = document.createElement("iframe");
+    f.src = cfg.web;
+    f.title = "Web page";
+    f.style.width = (w / z) + "px";
+    f.style.height = (h / z) + "px";
+    f.style.transform = "scale(" + z + ")";
+    side.appendChild(f);
+  }
+
+  // Weather icons: simple white shapes so they look the same on every player
+  function svg(inner) {
+    return '<svg viewBox="0 0 64 64" fill="none" stroke="#fff" stroke-width="3.5" ' +
+      'stroke-linecap="round" stroke-linejoin="round">' + inner + "</svg>";
+  }
+  var CLOUD = '<g fill="#fff" stroke="none"><circle cx="24" cy="38" r="10"/><circle cx="36" cy="30" r="13"/>' +
+    '<circle cx="46" cy="38" r="10"/><rect x="24" y="36" width="22" height="12"/></g>';
+  var SUN = '<circle cx="32" cy="32" r="11" fill="#fff" stroke="none"/>' +
+    '<path d="M32 6v7M32 51v7M6 32h7M51 32h7M13.6 13.6l5 5M45.4 45.4l5 5M13.6 50.4l5-5M45.4 18.6l5-5"/>';
+  var MOON = '<path fill="#fff" stroke="none" d="M40 8A24 24 0 1 0 56 44A19 19 0 0 1 40 8Z"/>';
+  var ICONS = {
+    sun: svg(SUN),
+    moon: svg(MOON),
+    cloud: svg(CLOUD),
+    partlyDay: svg('<g transform="translate(-6,-8) scale(0.75)">' + SUN + "</g>" +
+      '<g transform="translate(6,10) scale(0.9)">' + CLOUD + "</g>"),
+    partlyNight: svg('<g transform="translate(-2,-4) scale(0.6)">' + MOON + "</g>" +
+      '<g transform="translate(6,10) scale(0.9)">' + CLOUD + "</g>"),
+    rain: svg('<g transform="translate(0,-8)">' + CLOUD + "</g>" +
+      '<path d="M24 46l-4 10M34 46l-4 10M44 46l-4 10"/>'),
+    storm: svg('<g transform="translate(0,-8)">' + CLOUD + "</g>" +
+      '<path fill="#ffd54a" stroke="none" d="M35 40L24 54h8l-4 10 14-16h-8l4-8z"/>'),
+    snow: svg('<g transform="translate(0,-8)">' + CLOUD + "</g>" +
+      '<g fill="#fff" stroke="none"><circle cx="22" cy="50" r="2.6"/><circle cx="34" cy="53" r="2.6"/>' +
+      '<circle cx="46" cy="50" r="2.6"/><circle cx="28" cy="60" r="2.6"/><circle cx="40" cy="60" r="2.6"/></g>'),
+    fog: svg('<path d="M12 22h40M8 32h48M12 42h40M18 52h28"/>')
+  };
+  function iconFor(desc, isDay) {
+    var d = (desc || "").toLowerCase();
+    if (/thunder|t-storm|storm/.test(d)) { return ICONS.storm; }
+    if (/snow|flurr|sleet|ice|freezing|wintry/.test(d)) { return ICONS.snow; }
+    if (/rain|shower|drizzle/.test(d)) { return ICONS.rain; }
+    if (/fog|haze|smoke|mist|dust/.test(d)) { return ICONS.fog; }
+    if (/partly|mostly sunny|mostly clear|few clouds|becoming sunny|becoming clear/.test(d)) {
+      return isDay ? ICONS.partlyDay : ICONS.partlyNight;
+    }
+    if (/cloud|overcast/.test(d)) { return ICONS.cloud; }
+    return isDay ? ICONS.sun : ICONS.moon;
+  }
+
+  var wx = null;
+  function buildWeather() {
+    side.innerHTML = "";
+    var box = el("div", "wx");
+    box.appendChild(el("div", "wx-head", cfg.wxname));
+
+    var top = el("div", "wx-top");
+    var clock = el("div", "wx-clock");
+    clock.innerHTML = '<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="48" stroke="#fff" stroke-width="2" fill="none"/>' +
+      '<g class="ticks-h" stroke="#fff" stroke-width="2"></g><g class="ticks-m" stroke="#fff" stroke-width="0.5"></g>' +
+      '<g class="nums" fill="#fff" font-size="7" font-family="sans-serif" text-anchor="middle" dominant-baseline="central"></g>' +
+      '<line class="hand-h" x1="50" y1="50" x2="50" y2="28" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/>' +
+      '<line class="hand-m" x1="50" y1="50" x2="50" y2="17" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>' +
+      '<line class="hand-s" x1="50" y1="56" x2="50" y2="13" stroke="#ff3b30" stroke-width="1" stroke-linecap="round"/>' +
+      '<circle cx="50" cy="50" r="2.5" fill="#fff"/></svg>';
+    var hTicks = "", mTicks = "", nums = "";
+    for (var i = 0; i < 60; i++) {
+      var a = i * 6 * Math.PI / 180, sn = Math.sin(a), cs = Math.cos(a);
+      if (i % 5 === 0) {
+        hTicks += '<line x1="' + (50 + 42 * sn) + '" y1="' + (50 - 42 * cs) + '" x2="' + (50 + 48 * sn) + '" y2="' + (50 - 48 * cs) + '"/>';
+        var hr = i / 5 === 0 ? 12 : i / 5;
+        nums += '<text x="' + (50 + 35 * sn) + '" y="' + (50 - 35 * cs) + '">' + hr + "</text>";
+      } else {
+        mTicks += '<line x1="' + (50 + 45 * sn) + '" y1="' + (50 - 45 * cs) + '" x2="' + (50 + 48 * sn) + '" y2="' + (50 - 48 * cs) + '"/>';
+      }
+    }
+    clock.querySelector(".ticks-h").innerHTML = hTicks;
+    clock.querySelector(".ticks-m").innerHTML = mTicks;
+    clock.querySelector(".nums").innerHTML = nums;
+    top.appendChild(clock);
+
+    var now = el("div", "wx-now");
+    now.appendChild(el("div", "wx-now-label", "Now"));
+    var nowTemp = el("div", "wx-now-temp", "--");
+    var nowDesc = el("div", "wx-now-desc", "");
+    now.appendChild(nowTemp);
+    now.appendChild(nowDesc);
+    top.appendChild(now);
+    box.appendChild(top);
+
+    var list = el("div", "wx-list");
+    box.appendChild(list);
+    var foot = el("div", "wx-foot", "Loading forecast...");
+    box.appendChild(foot);
+    side.appendChild(box);
+
+    wx = {
+      hands: {
+        h: clock.querySelector(".hand-h"),
+        m: clock.querySelector(".hand-m"),
+        s: clock.querySelector(".hand-s")
+      },
+      nowTemp: nowTemp,
+      nowDesc: nowDesc,
+      list: list,
+      foot: foot
+    };
+  }
+
+  function updateAnalog() {
+    if (!wx) { return; }
+    var t = zoned(new Date());
+    wx.hands.s.setAttribute("transform", "rotate(" + (t.s * 6) + " 50 50)");
+    wx.hands.m.setAttribute("transform", "rotate(" + (t.m * 6 + t.s * 0.1) + " 50 50)");
+    wx.hands.h.setAttribute("transform", "rotate(" + ((t.h % 12) * 30 + t.m * 0.5) + " 50 50)");
+  }
+
+  function renderWeather(data, live) {
+    if (!wx || !data) { return; }
+    if (data.now) {
+      wx.nowTemp.textContent = data.now.temp + "\u00B0";
+      wx.nowDesc.textContent = data.now.desc;
+    }
+    wx.list.innerHTML = "";
+    (data.periods || []).forEach(function (p) {
+      var row = el("div", "wx-row");
+      var n = el("div", "n");
+      n.appendChild(el("b", "", p.name));
+      n.appendChild(el("small", "", p.desc));
+      row.appendChild(n);
+      var ic = el("div", "i");
+      ic.innerHTML = iconFor(p.desc, p.isDay);
+      row.appendChild(ic);
+      row.appendChild(el("div", "p", p.pop ? p.pop + "%" : ""));
+      row.appendChild(el("div", "t", p.temp + "\u00B0" + (p.unit || "")));
+      wx.list.appendChild(row);
+    });
+    var when = data.at ? fmtTime(new Date(data.at)) : "";
+    wx.foot.textContent = live ? "Updated " + when + " \u00B7 National Weather Service"
+      : "Forecast offline \u00B7 last updated " + when;
+  }
+
+  var WX_KEY = "nths-signage-wx";
+  function getJson(url) {
+    return fetch(url, { cache: "no-store", headers: { "Accept": "application/geo+json" } })
+      .then(function (r) { if (!r.ok) { throw new Error("HTTP " + r.status); } return r.json(); });
+  }
+  function loadWeather() {
+    var base = "https://api.weather.gov/gridpoints/" + cfg.wx;
+    Promise.all([
+      getJson(base + "/forecast"),
+      getJson(base + "/forecast/hourly").catch(function () { return null; })
+    ]).then(function (res) {
+      var periods = res[0].properties.periods.slice(0, 7).map(function (p) {
+        return {
+          name: p.name,
+          desc: p.shortForecast,
+          temp: p.temperature,
+          unit: p.temperatureUnit,
+          pop: p.probabilityOfPrecipitation && p.probabilityOfPrecipitation.value,
+          isDay: p.isDaytime
+        };
+      });
+      var h = res[1] && res[1].properties && res[1].properties.periods && res[1].properties.periods[0];
+      var nowData = h ? { temp: h.temperature, desc: h.shortForecast } : { temp: periods[0].temp, desc: periods[0].desc };
+      var data = { at: Date.now(), now: nowData, periods: periods };
+      store(WX_KEY, data);
+      renderWeather(data, true);
+    }).catch(function (e) {
+      console.warn("Weather load failed:", e);
+      var cached = recall(WX_KEY);
+      if (cached) { renderWeather(cached, false); }
+      else if (wx) { wx.foot.textContent = "Forecast unavailable right now"; }
+    });
+  }
+
+  if (cfg.web) {
+    startWeb();
+    var wr = num(cfg.webrefresh, 15);
+    if (wr > 0) { setInterval(startWeb, wr * 60000); }
+  } else {
+    buildWeather();
+    updateAnalog();
+    setInterval(updateAnalog, 1000);
+    var cachedWx = recall(WX_KEY);
+    if (cachedWx) { renderWeather(cachedWx, false); }
+    loadWeather();
+    setInterval(loadWeather, Math.max(5, num(cfg.wxrefresh, 30)) * 60000);
+  }
+
+  // ---------- Announcements ticker (NTHS RSS feed on GitHub) ----------
+  var track = $("ticker-track");
+  var win = $("ticker-window");
+  var speed = num(cfg.speed, 110);
+  var trackW = 0;
+  var x = null;
+  var pending = null;
+  var showingFallback = true;
+  var RSS_KEY = "nths-signage-rss";
+
+  function textOf(s) {
+    if (!s) { return ""; }
+    // Parse as inert HTML so entities decode and tags drop out, without running scripts or loading images
+    var doc = new DOMParser().parseFromString(String(s), "text/html");
+    return (doc.body.textContent || "").replace(/\s+/g, " ").trim();
+  }
+
+  function pick(block, tag) {
+    var m = block.match(new RegExp("<" + tag + "[^>]*>([\\s\\S]*?)</" + tag + ">", "i"));
+    if (!m) { return ""; }
+    return m[1].replace(/^\s*<!\[CDATA\[/, "").replace(/\]\]>\s*$/, "");
+  }
+
+  function parseFeed(txt) {
+    var out = [];
+    var doc = new DOMParser().parseFromString(txt, "application/xml");
+    if (!doc.querySelector("parsererror")) {
+      var nodes = doc.querySelectorAll("item, entry");
+      for (var i = 0; i < nodes.length; i++) {
+        var n = nodes[i];
+        var t = n.querySelector("title");
+        var d = n.querySelector("description") || n.querySelector("summary") || n.querySelector("content");
+        var item = { t: textOf(t && t.textContent), d: textOf(d && d.textContent) };
+        if (item.t || item.d) { out.push(item); }
+      }
+    }
+    if (!out.length) {
+      // Tolerant fallback so one broken tag in the feed does not blank the ticker
+      var blocks = txt.match(/<item[\s>][\s\S]*?(?=<item[\s>]|<\/channel>|$)/gi) || [];
+      blocks.forEach(function (b) {
+        var item = { t: textOf(pick(b, "title")), d: textOf(pick(b, "description")) };
+        if (item.t || item.d) { out.push(item); }
+      });
+    }
+    return out;
+  }
+
+  function renderTicker(list) {
+    track.innerHTML = "";
+    list.forEach(function (it) {
+      var span = el("span");
+      if (it.t) { span.appendChild(el("span", "t-title", it.t + (it.d ? ": " : ""))); }
+      if (it.d) { span.appendChild(document.createTextNode(it.d)); }
+      track.appendChild(span);
+      track.appendChild(el("span", "t-sep", "\u2022"));
+    });
+    trackW = track.scrollWidth;
+  }
+
+  function accept(list) {
+    if (!list || !list.length) { return; }
+    if (showingFallback) {
+      showingFallback = false;
+      renderTicker(list);
+      x = win.clientWidth;
+    } else {
+      pending = list;
+    }
+  }
+
+  // Start with the last good feed this player saw, or the welcome message
+  var cachedRss = recall(RSS_KEY);
+  if (cachedRss && cachedRss.length) {
+    renderTicker(cachedRss);
+    showingFallback = false;
+  } else {
+    renderTicker([{ t: "", d: cfg.msg }]);
+  }
+
+  function loadRss() {
+    if (!cfg.rss) { return; }
+    var url = cfg.rss + (cfg.rss.indexOf("?") === -1 ? "?" : "&") + "_=" + Date.now();
+    fetch(url, { cache: "no-store" })
+      .then(function (r) { if (!r.ok) { throw new Error("HTTP " + r.status); } return r.text(); })
+      .then(function (txt) {
+        var list = parseFeed(txt);
+        if (list.length) {
+          store(RSS_KEY, list);
+          accept(list);
+        }
+      })
+      .catch(function (e) { console.warn("RSS load failed:", e); });
+  }
+  loadRss();
+  setInterval(loadRss, Math.max(1, num(cfg.rssrefresh, 10)) * 60000);
+
+  var last = performance.now();
+  function frame(now) {
+    var dt = Math.min(0.1, (now - last) / 1000);
+    last = now;
+    if (x === null) { x = win.clientWidth; }
+    x -= speed * dt;
+    if (x < -trackW) {
+      if (pending) { renderTicker(pending); pending = null; }
+      x = win.clientWidth;
+    }
+    track.style.transform = "translate3d(" + x.toFixed(1) + "px,0,0)";
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ---------- Daily full reload for long-run stability ----------
+  var rh = parseInt(cfg.reloadhour, 10);
+  if (rh >= 0 && rh <= 23) {
+    var startedAt = Date.now();
+    setInterval(function () {
+      if (zoned(new Date()).h === rh && Date.now() - startedAt > 2 * 3600000) { location.reload(); }
+    }, 60000);
+  }
+})();
+</script>
+</body>
+</html>
