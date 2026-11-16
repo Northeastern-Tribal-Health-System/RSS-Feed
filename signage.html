@@ -98,12 +98,36 @@
     display: block;
     background: #000;
   }
-  #video video::cue {
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 34px;
-    line-height: 1.25;
+  #cc {
+    position: absolute;
+    left: 100px;
+    right: 100px;
+    bottom: 48px;
+    text-align: center;
+    pointer-events: none;
+    visibility: hidden;
+    z-index: 5;
+  }
+  #cc span {
+    display: inline;
+    white-space: pre-line;
     color: #fff;
+    background: rgba(0, 0, 0, 0.78);
+    font: 600 40px/1.4 Arial, Helvetica, sans-serif;
+    padding: 2px 14px;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+  #dbg {
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    z-index: 50;
     background: rgba(0, 0, 0, 0.75);
+    color: #9fd3a0;
+    font: 18px/1.35 monospace;
+    padding: 8px 10px;
+    white-space: pre;
   }
 
   /* Info strip */
@@ -598,10 +622,78 @@
     });
   }
 
+  // ---------- Captions ----------
+  // Drawn by the page itself rather than the browser's <track> support, which
+  // behaves differently from player to player and needs extra CORS on video.
+  function vttSeconds(h, m, s, ms) {
+    return (h ? parseInt(h, 10) * 3600 : 0) + parseInt(m, 10) * 60 + parseInt(s, 10) + parseInt(ms, 10) / 1000;
+  }
+
+  function decodeEntities(t) {
+    return t.replace(/&nbsp;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+      .replace(/&quot;/g, "\"").replace(/&#39;/g, "'").replace(/&amp;/g, "&");
+  }
+
+  function parseVtt(txt) {
+    var cues = [];
+    var timing = /^(\d{1,2}:)?(\d{1,2}):(\d{2})[.,](\d{3})\s+-->\s+(\d{1,2}:)?(\d{1,2}):(\d{2})[.,](\d{3})/;
+    String(txt).replace(/\r/g, "").split(/\n\s*\n/).forEach(function (block) {
+      var lines = block.split("\n");
+      for (var i = 0; i < lines.length; i++) {
+        var m = lines[i].match(timing);
+        if (m) {
+          var text = decodeEntities(lines.slice(i + 1).join("\n").replace(/<[^>]+>/g, "")).trim();
+          if (text) {
+            cues.push({ s: vttSeconds(m[1], m[2], m[3], m[4]), e: vttSeconds(m[5], m[6], m[7], m[8]), t: text });
+          }
+          break;
+        }
+      }
+    });
+    cues.sort(function (a, b) { return a.s - b.s; });
+    return cues;
+  }
+
+  var ccRun = 0;
+  function showCaptions(v, cues) {
+    var run = ++ccRun;
+    var box = el("div", "", "");
+    box.id = "cc";
+    var span = el("span", "", "");
+    box.appendChild(span);
+    videoBox.appendChild(box);
+    var idx = 0, shownText = null;
+    function tick() {
+      if (run !== ccRun || !v.isConnected) { return; }
+      var t = v.currentTime;
+      if (idx >= cues.length || (idx > 0 && cues[idx - 1].s > t)) { idx = 0; }
+      while (idx < cues.length && cues[idx].e <= t) { idx++; }
+      var cue = cues[idx];
+      var text = cue && cue.s <= t ? cue.t : "";
+      if (text !== shownText) {
+        span.textContent = text;
+        box.style.visibility = text ? "visible" : "hidden";
+        shownText = text;
+      }
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function debugLine(key, val) {
+    if (cfg.debug !== "1") { return; }
+    var d = $("dbg");
+    if (!d) { d = el("div", "", ""); d.id = "dbg"; document.body.appendChild(d); }
+    debugLine.state = debugLine.state || {};
+    debugLine.state[key] = val;
+    d.textContent = Object.keys(debugLine.state).map(function (k) { return k + ": " + debugLine.state[k]; }).join("\n");
+  }
+
   function jfPlayItem(item) {
     var ms = item.MediaSources[0];
     var subs = (ms.MediaStreams || []).filter(function (s) { return s.Type === "Subtitle" && s.IsTextSubtitleStream; });
-    var useCc = cfg.cc !== "0" && subs.length > 0 && !item._noCc;
+    var useCc = cfg.cc !== "0" && subs.length > 0;
+    ccRun++;
     videoBox.innerHTML = "";
     var v = document.createElement("video");
     v.autoplay = true;
@@ -609,29 +701,26 @@
     v.playsInline = true;
     v.setAttribute("playsinline", "");
     v.preload = "auto";
+    debugLine("playing", item.Name);
+    debugLine("captions", useCc ? "loading" : (cfg.cc === "0" ? "turned off" : "none for this video"));
     if (useCc) {
-      v.crossOrigin = "anonymous";
-      var tr = document.createElement("track");
-      tr.kind = "captions";
-      tr.srclang = subs[0].Language || "en";
-      tr.label = subs[0].DisplayTitle || "Captions";
-      tr.default = true;
-      tr.src = jfUrl("/Videos/" + item.Id + "/" + ms.Id + "/Subtitles/" + subs[0].Index + "/0/Stream.vtt");
-      v.appendChild(tr);
-      v.addEventListener("loadedmetadata", function () {
-        if (v.textTracks && v.textTracks[0]) { v.textTracks[0].mode = "showing"; }
-      });
+      fetch(jfUrl("/Videos/" + item.Id + "/" + ms.Id + "/Subtitles/" + subs[0].Index + "/0/Stream.vtt"), { cache: "no-store" })
+        .then(function (r) { if (!r.ok) { throw new Error("HTTP " + r.status); } return r.text(); })
+        .then(function (txt) {
+          var cues = parseVtt(txt);
+          debugLine("captions", cues.length + (cues.length === 1 ? " line" : " lines"));
+          if (cues.length && jfState.video === v) { showCaptions(v, cues); }
+        })
+        .catch(function (e) {
+          console.warn("Captions failed for " + item.Name + ": " + e.message);
+          debugLine("captions", "failed: " + e.message);
+        });
     }
     v.src = jfUrl("/Videos/" + item.Id + "/stream", { static: "true", mediaSourceId: ms.Id });
-    v.addEventListener("playing", function () { jfState.fails = 0; jfState.lastId = item.Id; });
+    v.addEventListener("playing", function () { jfState.fails = 0; jfState.lastId = item.Id; debugLine("video", "playing"); });
     v.addEventListener("ended", function () { jfPlayNext(); });
     v.addEventListener("error", function () {
-      if (useCc) {
-        // captions need CORS on the server; retry this video without them
-        item._noCc = true;
-        jfPlayItem(item);
-        return;
-      }
+      debugLine("video", "error " + (v.error ? v.error.code : "?"));
       jfState.fails += 1;
       console.warn("Jellyfin video failed: " + item.Name);
       var wait = jfState.fails >= Math.max(3, jfState.items.length) ? 60000 : 3000;
@@ -946,7 +1035,7 @@
   // ---------- Pick up new versions of this page automatically ----------
   // Bump PAGE_VERSION whenever this file changes. Players compare it against the
   // copy on GitHub and reload (with a cache-busting parameter) when it differs.
-  var PAGE_VERSION = "2026-11-16.1";
+  var PAGE_VERSION = "2026-11-16.2";
   var su = num(cfg.selfupdate, 10);
   if (su > 0 && location.protocol.indexOf("http") === 0) {
     setInterval(function () {
