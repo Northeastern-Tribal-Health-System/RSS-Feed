@@ -430,6 +430,21 @@
   Object.keys(extra).forEach(function (k) { cfg[k] = String(extra[k]); });
   new URLSearchParams(location.search).forEach(function (v, k) { cfg[k] = v; });
 
+  // The Jellyfin token only has to be in the URL once per player. It is saved on
+  // the player, so later URLs (and UniFi automations) can just name the library.
+  (function () {
+    var key = "nths-signage-jftoken";
+    if (cfg.jftoken) {
+      store(key, cfg.jftoken);
+    } else if (new URLSearchParams(location.search).has("jflib")) {
+      cfg.jftoken = recall(key) || "";
+      if (!cfg.jftoken) {
+        console.warn("No Jellyfin token saved on this player; open the URL once with &jftoken=");
+        debugLine("jellyfin", "no token saved on this player yet");
+      }
+    }
+  })();
+
   function num(v, fallback) {
     var n = parseFloat(v);
     return isFinite(n) ? n : fallback;
@@ -614,7 +629,7 @@
       jfState.items.forEach(function (it) { jfState.byId[it.Id] = it; });
       jfMergeRound();
       jfState.loadedAt = Date.now();
-      debugLine("library", cfg.jflib + ", " + jfState.items.length + " videos, " + jfState.queue.length + " left this round");
+      debugLine("library", cfg.jflib + ", " + jfState.items.length + (jfState.items.length === 1 ? " video, " : " videos, ") + jfState.queue.length + " left this round");
       return jfState.items.length;
     });
   }
@@ -713,6 +728,12 @@
     return cues;
   }
 
+  function clockText(sec) {
+    sec = Math.floor(sec);
+    var m = Math.floor(sec / 60), s = sec % 60;
+    return m + ":" + (s < 10 ? "0" : "") + s;
+  }
+
   var ccRun = 0;
   function showCaptions(v, cues) {
     var run = ++ccRun;
@@ -733,6 +754,11 @@
         span.textContent = text;
         box.style.visibility = text ? "visible" : "hidden";
         shownText = text;
+        if (text) {
+          debugLine("on screen", text.replace(/\n/g, " ").slice(0, 60));
+        } else {
+          debugLine("on screen", cue ? "nothing until " + clockText(cue.s) : "no more captions in this video");
+        }
       }
       requestAnimationFrame(tick);
     }
@@ -1108,7 +1134,7 @@
   // ---------- Pick up new versions of this page automatically ----------
   // Bump PAGE_VERSION whenever this file changes. Players compare it against the
   // copy on GitHub and reload (with a cache-busting parameter) when it differs.
-  var PAGE_VERSION = "2026-11-16.3";
+  var PAGE_VERSION = "2026-11-16.5";
   debugLine("page", "version " + PAGE_VERSION);
   var su = num(cfg.selfupdate, 10);
   if (su > 0 && location.protocol.indexOf("http") === 0) {
