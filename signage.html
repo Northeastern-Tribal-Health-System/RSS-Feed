@@ -98,6 +98,13 @@
     display: block;
     background: #000;
   }
+  #video video::cue {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 34px;
+    line-height: 1.25;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.75);
+  }
 
   /* Info strip */
   #info {
@@ -378,6 +385,12 @@
     ytchannel: "",
     ytlist: "",
     stream: "",
+    jf: "https://media.ad.nthsclinic.com",
+    jftoken: "",
+    jflib: "Longhouse",
+    jforder: "shuffle",
+    jfrefresh: "30",
+    cc: "1",
     mute: "1",
     videorefresh: "240",
     title: "Northeastern Tribal Health System",
@@ -514,7 +527,129 @@
     v.addEventListener("ended", function () { setTimeout(startStream, 2000); });
   }
 
+  // ---------- Jellyfin playlist ----------
+  // jftoken = the signage user's access token, jflib = library name.
+  // Plays every video in the library in a loop (shuffled unless jforder=name),
+  // re-reads the library every jfrefresh minutes, and skips anything that fails.
+  var jfState = { userId: "", libId: "", items: [], queue: [], loadedAt: 0, fails: 0, video: null, lastId: "" };
+
+  function jfUrl(path, params) {
+    var q = new URLSearchParams(params || {});
+    q.set("ApiKey", cfg.jftoken);
+    return cfg.jf.replace(/\/+$/, "") + path + "?" + q.toString();
+  }
+
+  function jfJson(path, params) {
+    return fetch(jfUrl(path, params), { cache: "no-store" })
+      .then(function (r) { if (!r.ok) { throw new Error("Jellyfin HTTP " + r.status + " on " + path); } return r.json(); });
+  }
+
+  function jfShuffle(list) {
+    var a = list.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function jfLoadLibrary() {
+    var userStep = jfState.userId ? Promise.resolve(jfState.userId) :
+      jfJson("/Users/Me").then(function (me) { jfState.userId = me.Id; return me.Id; });
+    return userStep.then(function (uid) {
+      return jfJson("/UserViews", { userId: uid }).then(function (views) {
+        var want = String(cfg.jflib).toLowerCase();
+        var lib = (views.Items || []).filter(function (v) { return String(v.Name).toLowerCase() === want; })[0];
+        if (!lib) { throw new Error("Jellyfin library not found: " + cfg.jflib); }
+        jfState.libId = lib.Id;
+        return jfJson("/Items", {
+          userId: uid, parentId: lib.Id, recursive: "true",
+          includeItemTypes: "Video,Movie,Episode,MusicVideo",
+          fields: "MediaSources", sortBy: "SortName", sortOrder: "Ascending"
+        });
+      });
+    }).then(function (res) {
+      jfState.items = (res.Items || []).filter(function (it) { return it.MediaSources && it.MediaSources.length; });
+      jfState.queue = [];
+      jfState.loadedAt = Date.now();
+      return jfState.items.length;
+    });
+  }
+
+  function jfNextItem() {
+    if (!jfState.queue.length) {
+      jfState.queue = cfg.jforder === "name" ? jfState.items.slice() : jfShuffle(jfState.items);
+      // avoid playing the same video twice in a row across a reshuffle
+      if (jfState.queue.length > 1 && jfState.queue[0].Id === jfState.lastId) { jfState.queue.push(jfState.queue.shift()); }
+    }
+    return jfState.queue.shift();
+  }
+
+  function jfPlayNext() {
+    var stale = Date.now() - jfState.loadedAt > num(cfg.jfrefresh, 30) * 60000;
+    var ready = (!jfState.items.length || stale) ? jfLoadLibrary() : Promise.resolve(jfState.items.length);
+    ready.then(function (count) {
+      if (!count) { throw new Error("Jellyfin library is empty: " + cfg.jflib); }
+      jfPlayItem(jfNextItem());
+    }).catch(function (e) {
+      console.warn(e.message || e);
+      jfState.items = [];
+      setTimeout(jfPlayNext, 60000);
+    });
+  }
+
+  function jfPlayItem(item) {
+    var ms = item.MediaSources[0];
+    var subs = (ms.MediaStreams || []).filter(function (s) { return s.Type === "Subtitle" && s.IsTextSubtitleStream; });
+    var useCc = cfg.cc !== "0" && subs.length > 0 && !item._noCc;
+    videoBox.innerHTML = "";
+    var v = document.createElement("video");
+    v.autoplay = true;
+    v.muted = cfg.mute !== "0";
+    v.playsInline = true;
+    v.setAttribute("playsinline", "");
+    v.preload = "auto";
+    if (useCc) {
+      v.crossOrigin = "anonymous";
+      var tr = document.createElement("track");
+      tr.kind = "captions";
+      tr.srclang = subs[0].Language || "en";
+      tr.label = subs[0].DisplayTitle || "Captions";
+      tr.default = true;
+      tr.src = jfUrl("/Videos/" + item.Id + "/" + ms.Id + "/Subtitles/" + subs[0].Index + "/0/Stream.vtt");
+      v.appendChild(tr);
+      v.addEventListener("loadedmetadata", function () {
+        if (v.textTracks && v.textTracks[0]) { v.textTracks[0].mode = "showing"; }
+      });
+    }
+    v.src = jfUrl("/Videos/" + item.Id + "/stream", { static: "true", mediaSourceId: ms.Id });
+    v.addEventListener("playing", function () { jfState.fails = 0; jfState.lastId = item.Id; });
+    v.addEventListener("ended", function () { jfPlayNext(); });
+    v.addEventListener("error", function () {
+      if (useCc) {
+        // captions need CORS on the server; retry this video without them
+        item._noCc = true;
+        jfPlayItem(item);
+        return;
+      }
+      jfState.fails += 1;
+      console.warn("Jellyfin video failed: " + item.Name);
+      var wait = jfState.fails >= Math.max(3, jfState.items.length) ? 60000 : 3000;
+      if (wait > 3000) { jfState.items = []; jfState.fails = 0; }
+      setTimeout(jfPlayNext, wait);
+    });
+    videoBox.appendChild(v);
+    jfState.video = v;
+    v.play().catch(function () {});
+  }
+
+  function startJellyfin() {
+    jfState.items = [];
+    jfPlayNext();
+  }
+
   function startVideo() {
+    if (cfg.jftoken) { startJellyfin(); return; }
     if (cfg.stream) { startStream(); return; }
     videoBox.innerHTML = "";
     var src = youtubeSrc();
@@ -528,7 +663,7 @@
   }
   startVideo();
   var vr = num(cfg.videorefresh, 240);
-  if (vr > 0 && (cfg.stream || youtubeSrc())) { setInterval(startVideo, vr * 60000); }
+  if (vr > 0 && !cfg.jftoken && (cfg.stream || youtubeSrc())) { setInterval(startVideo, vr * 60000); }
 
   // ---------- Right panel ----------
   var side = $("side");
@@ -811,7 +946,7 @@
   // ---------- Pick up new versions of this page automatically ----------
   // Bump PAGE_VERSION whenever this file changes. Players compare it against the
   // copy on GitHub and reload (with a cache-busting parameter) when it differs.
-  var PAGE_VERSION = "2026-11-13.4";
+  var PAGE_VERSION = "2026-11-16.1";
   var su = num(cfg.selfupdate, 10);
   if (su > 0 && location.protocol.indexOf("http") === 0) {
     setInterval(function () {
