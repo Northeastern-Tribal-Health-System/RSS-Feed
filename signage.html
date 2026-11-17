@@ -40,6 +40,13 @@
     reloadhour   Hour (0-23) for a full page reload each day (default: 3, -1 = never)
     selfupdate   Minutes between checks for a newer version of this page on GitHub; reloads
                  automatically when one is found (default: 10, 0 = never)
+    trivia       1 = play a short trivia break between Jellyfin videos (default: 0 = off)
+    triviaevery  Minutes between trivia breaks (default: 30). A break only starts when a
+                 video ends, never in the middle of one. 0 = after every video, for testing.
+    triviaitems  Items per break (default: 3, e.g. two questions and a fun fact)
+    triviaq      Seconds a question or fun fact stays up (default: 12)
+    triviaa      Seconds an answer stays up (default: 10)
+    triviafile   Trivia file (default: trivia.json next to this page; edit it to change the trivia)
 -->
 <style>
   :root {
@@ -118,6 +125,43 @@
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
   }
+  /* Trivia breaks, in the video zone; same look as the Lobby Trivia deck */
+  .trivia {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1600px;
+    height: 900px;
+    box-sizing: border-box;
+    padding: 96px 104px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    font-family: Roboto, "Segoe UI", "Open Sans", Arial, sans-serif;
+    animation: trivia-in 0.6s ease-out both;
+  }
+  .trivia p { margin: 0; }
+  .tv-eyebrow { font-size: 30px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+  .tv-rule { width: 116px; height: 8px; border-radius: 4px; }
+  .tv-body { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 32px; }
+  .tv-main { font-size: 70px; font-weight: 700; line-height: 1.15; }
+  .tv-sub { font-size: 36px; line-height: 1.35; }
+  .trivia.q { background: #13241a; }
+  .trivia.q .tv-eyebrow { color: #ffd54a; }
+  .trivia.q .tv-rule { background: #ffd54a; }
+  .trivia.q .tv-main { color: #f3f6f1; }
+  .trivia.q .tv-sub { color: #b8c8ba; font-size: 30px; }
+  .trivia.a { background: #f1ecc8; }
+  .trivia.a .tv-eyebrow { color: #2f4a33; }
+  .trivia.a .tv-rule { background: #4f7350; }
+  .trivia.a .tv-main { color: #13241a; font-size: 100px; font-weight: 900; line-height: 1.05; }
+  .trivia.a .tv-sub { color: #2c3d30; }
+  .trivia.fact { background: #9fd3a0; }
+  .trivia.fact .tv-eyebrow { color: #13241a; }
+  .trivia.fact .tv-rule { background: #13241a; }
+  .trivia.fact .tv-main { color: #13241a; }
+  @keyframes trivia-in { from { opacity: 0; } }
+
   #dbg {
     position: absolute;
     right: 8px;
@@ -424,7 +468,13 @@
     msg: "Welcome! Please check in at the front desk.",
     tz: "America/Chicago",
     reloadhour: "3",
-    selfupdate: "10"
+    selfupdate: "10",
+    trivia: "0",
+    triviaevery: "30",
+    triviaitems: "3",
+    triviaq: "12",
+    triviaa: "10",
+    triviafile: "trivia.json"
   };
   var extra = window.SIGNAGE_CONFIG || {};
   Object.keys(extra).forEach(function (k) { cfg[k] = String(extra[k]); });
@@ -816,7 +866,11 @@
       var now = Date.now();
       if (now - lastSave > 10000) { lastSave = now; jfSave(); }
     });
-    v.addEventListener("ended", function () { jfState.curId = ""; jfSave(); jfPlayNext(); });
+    v.addEventListener("ended", function () {
+      jfState.curId = "";
+      jfSave();
+      if (triviaDue()) { playTrivia(jfPlayNext); } else { jfPlayNext(); }
+    });
     v.addEventListener("error", function () {
       debugLine("video", "error " + (v.error ? v.error.code : "?"));
       jfState.fails += 1;
@@ -830,9 +884,103 @@
     v.play().catch(function () {});
   }
 
+  // ---------- Trivia breaks ----------
+  // With trivia=1, a short break of questions, answers and fun facts from
+  // trivia.json plays after a video ends, once triviaevery minutes have passed
+  // since the last break. It never cuts into a video. The time of the last
+  // break and the next item to show are saved on the player, so a reload
+  // neither repeats a break nor starts the trivia over.
+  var TRIVIA_KEY = "nths-signage-trivia:" + String(cfg.jflib).toLowerCase();
+  var triviaItems = [];
+
+  function triviaState() {
+    var s = recall(TRIVIA_KEY) || {};
+    if (!s.last) { s.last = Date.now(); s.next = s.next || 0; store(TRIVIA_KEY, s); }
+    return s;
+  }
+
+  function triviaDue() {
+    if (cfg.trivia !== "1") { return false; }
+    return Date.now() - triviaState().last >= num(cfg.triviaevery, 30) * 60000;
+  }
+
+  function triviaNote() {
+    if (cfg.trivia !== "1") { return; }
+    var mins = Math.max(0, Math.ceil((triviaState().last + num(cfg.triviaevery, 30) * 60000 - Date.now()) / 60000));
+    debugLine("trivia", mins ? "next break when a video ends " + mins + "+ min from now" : "next break when this video ends");
+  }
+
+  // Read the file again for every break, so edits show up without a reload.
+  function fetchTrivia() {
+    return fetch(cfg.triviafile, { cache: "no-store" })
+      .then(function (r) { if (!r.ok) { throw new Error("HTTP " + r.status); } return r.json(); })
+      .then(function (data) {
+        var items = (data.items || []).filter(function (it) {
+          return it && (it.type === "fact" ? it.text : (it.q && it.a));
+        });
+        if (items.length) { triviaItems = items; }
+        return triviaItems;
+      })
+      .catch(function (e) {
+        console.warn("Trivia file failed: " + e.message);
+        return triviaItems;
+      });
+  }
+
+  function triviaSlide(kind, eyebrow, main, sub) {
+    var box = el("div", "trivia " + kind);
+    box.appendChild(el("p", "tv-eyebrow", eyebrow));
+    box.appendChild(el("div", "tv-rule"));
+    var body = el("div", "tv-body");
+    body.appendChild(el("p", "tv-main", main));
+    if (sub) { body.appendChild(el("p", "tv-sub", sub)); }
+    box.appendChild(body);
+    return box;
+  }
+
+  function playTrivia(done) {
+    var s = triviaState();
+    s.last = Date.now();
+    store(TRIVIA_KEY, s);
+    ccRun++;
+    jfState.video = null;
+    fetchTrivia().then(function (items) {
+      if (!items.length) { debugLine("trivia", "no trivia to show"); done(); return; }
+      var count = Math.min(items.length, Math.max(1, Math.round(num(cfg.triviaitems, 3))));
+      var start = (s.next || 0) % items.length;
+      var slides = [];
+      for (var i = 0; i < count; i++) {
+        var it = items[(start + i) % items.length];
+        if (it.type === "fact") {
+          slides.push({ kind: "fact", eyebrow: "Did you know?", main: it.text, secs: num(cfg.triviaq, 12) });
+        } else {
+          slides.push({ kind: "q", eyebrow: "Trivia", main: it.q, sub: "Answer coming up", secs: num(cfg.triviaq, 12) });
+          slides.push({ kind: "a", eyebrow: "Answer", main: it.a, sub: it.detail || "", secs: num(cfg.triviaa, 10) });
+        }
+      }
+      s.next = (start + count) % items.length;
+      store(TRIVIA_KEY, s);
+      var n = 0;
+      (function show() {
+        if (n >= slides.length) {
+          videoBox.innerHTML = "";
+          triviaNote();
+          done();
+          return;
+        }
+        var sl = slides[n++];
+        videoBox.innerHTML = "";
+        videoBox.appendChild(triviaSlide(sl.kind, sl.eyebrow, sl.main, sl.sub));
+        debugLine("trivia", "break, slide " + n + " of " + slides.length);
+        setTimeout(show, Math.max(3, sl.secs) * 1000);
+      })();
+    });
+  }
+
   function startJellyfin() {
     jfState.items = [];
     window.addEventListener("pagehide", jfSave);
+    triviaNote();
     jfPlayNext();
   }
 
@@ -1134,7 +1282,7 @@
   // ---------- Pick up new versions of this page automatically ----------
   // Bump PAGE_VERSION whenever this file changes. Players compare it against the
   // copy on GitHub and reload (with a cache-busting parameter) when it differs.
-  var PAGE_VERSION = "2026-11-16.5";
+  var PAGE_VERSION = "2026-11-17.1";
   debugLine("page", "version " + PAGE_VERSION);
   var su = num(cfg.selfupdate, 10);
   if (su > 0 && location.protocol.indexOf("http") === 0) {

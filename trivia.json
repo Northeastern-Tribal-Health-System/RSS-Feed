@@ -1,0 +1,101 @@
+{
+  "about": "Trivia for the lobby screens (signage.html with trivia=1). Each break shows the next few items in this order, then picks up where it left off next time. An item is either {\"type\":\"qa\",\"q\":question,\"a\":answer,\"detail\":one more line} or {\"type\":\"fact\",\"text\":fun fact}. Sources for every item are in the speaker notes of the Lobby Trivia deck.",
+  "items": [
+    {
+      "type": "qa",
+      "q": "What famous highway runs right through downtown Miami?",
+      "a": "Route 66",
+      "detail": "The Coleman Theatre opened on Miami’s Route 66 Main Street on April 18, 1929."
+    },
+    {
+      "type": "qa",
+      "q": "Near Miami, part of the original Route 66 is only 9 feet wide. What is it called?",
+      "a": "The Ribbon Road",
+      "detail": "It’s also called the Sidewalk Highway. It was finished in 1922 and runs between Miami and Afton."
+    },
+    {
+      "type": "fact",
+      "text": "Oklahoma has more than 200 man-made lakes. That’s more than any other state."
+    },
+    {
+      "type": "qa",
+      "q": "What is Oklahoma’s state bird?",
+      "a": "The scissor-tailed flycatcher",
+      "detail": "Oklahoma made it the state bird in 1951. It’s on Oklahoma’s state quarter, too."
+    },
+    {
+      "type": "qa",
+      "q": "Which baseball legend grew up in nearby Commerce?",
+      "a": "Mickey Mantle",
+      "detail": "They called him “The Commerce Comet.” He joined the Baseball Hall of Fame in 1974."
+    },
+    {
+      "type": "fact",
+      "text": "On opening night in 1929, all 1,600 seats at Miami’s Coleman Theatre sold out at $1 each."
+    },
+    {
+      "type": "qa",
+      "q": "Which dam created Grand Lake o’ the Cherokees in 1940?",
+      "a": "Pensacola Dam",
+      "detail": "With 51 arches, it was the longest multiple-arch dam in the world when it was built."
+    },
+    {
+      "type": "qa",
+      "q": "How many times a day does the International Space Station circle the Earth?",
+      "a": "16 times",
+      "detail": "It goes around about every 90 minutes, so the crew sees 16 sunrises and 16 sunsets a day."
+    },
+    {
+      "type": "fact",
+      "text": "The Moon drifts about 1.5 inches farther from Earth every year. That’s about as fast as your fingernails grow."
+    },
+    {
+      "type": "qa",
+      "q": "Which planet has a day that lasts longer than its year?",
+      "a": "Venus",
+      "detail": "One spin takes 243 Earth days. One trip around the Sun takes about 225."
+    },
+    {
+      "type": "qa",
+      "q": "What is the official national mammal of the United States?",
+      "a": "The American bison",
+      "detail": "It became the national mammal in 2016, under the National Bison Legacy Act."
+    },
+    {
+      "type": "fact",
+      "text": "Hummingbirds are the only birds that can truly fly backwards."
+    },
+    {
+      "type": "qa",
+      "q": "How many hearts does an octopus have?",
+      "a": "Three",
+      "detail": "Two pump blood through its gills and one pumps it to the rest of its body. Its blood is blue."
+    },
+    {
+      "type": "qa",
+      "q": "What do you call a group of flamingos?",
+      "a": "A flamboyance",
+      "detail": "You can also call it a colony or a stand, but flamboyance is the fun one."
+    },
+    {
+      "type": "fact",
+      "text": "Your heart beats about 100,000 times a day."
+    },
+    {
+      "type": "qa",
+      "q": "What was silent film star Buster Keaton’s nickname?",
+      "a": "The Great Stone Face",
+      "detail": "He kept a perfectly straight face through his wildest stunts."
+    },
+    {
+      "type": "qa",
+      "q": "What is the name of Charlie Chaplin’s most famous character?",
+      "a": "The Tramp",
+      "detail": "Audiences first met him in 1914, in a short film called Kid Auto Races at Venice."
+    },
+    {
+      "type": "fact",
+      "text": "Every day, the space station travels about as far as going to the Moon and back."
+    }
+  ]
+}
