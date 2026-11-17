@@ -32,7 +32,8 @@
     ytchannel    YouTube channel ID (UC...), plays whatever that channel has live
     ytlist       YouTube playlist ID
     stream       HLS (.m3u8) or MP4 URL, e.g. from an encoder
-    mute         1 = muted (default, needed for autoplay), 0 = sound on
+    mute         1 = muted (default, needed for autoplay), 0 = sound on. If the
+                 browser blocks sound, the video plays muted instead.
     videorefresh Minutes between video reloads to recover a stalled stream (default: 240, 0 = never)
     title        Heading in the info strip
     msg          Message in the info strip
@@ -599,7 +600,7 @@
     var isHls = /\.m3u8(\?|$)/i.test(url);
     if (!isHls || v.canPlayType("application/vnd.apple.mpegurl")) {
       v.src = url;
-      v.play().catch(function () {});
+      playOrMute(v);
     } else {
       loadScript("https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js", function (err) {
         if (err || !window.Hls || !window.Hls.isSupported()) {
@@ -609,7 +610,7 @@
         hlsInstance = new window.Hls({ liveSyncDurationCount: 3 });
         hlsInstance.loadSource(url);
         hlsInstance.attachMedia(v);
-        hlsInstance.on(window.Hls.Events.MANIFEST_PARSED, function () { v.play().catch(function () {}); });
+        hlsInstance.on(window.Hls.Events.MANIFEST_PARSED, function () { playOrMute(v); });
         hlsInstance.on(window.Hls.Events.ERROR, function (evt, data) {
           if (data && data.fatal) { setTimeout(startStream, 15000); }
         });
@@ -741,6 +742,7 @@
       }
     }).catch(function (e) {
       console.warn(e.message || e);
+      debugLine("jellyfin", String(e.message || e) + " (trying again in 1 min)");
       jfState.items = [];
       setTimeout(jfPlayNext, 60000);
     });
@@ -815,6 +817,22 @@
     requestAnimationFrame(tick);
   }
 
+  // Browsers often refuse to start a video with sound until someone has touched
+  // the page. If that happens, play it muted rather than not at all.
+  function playOrMute(v) {
+    var p = v.play();
+    if (!p || !p.then) { return; }
+    p.then(function () {
+      debugLine("sound", v.muted ? "muted (mute=0 in the URL turns it on)" : "on");
+    }).catch(function (e) {
+      if (!v.muted && e && e.name === "NotAllowedError") {
+        v.muted = true;
+        debugLine("sound", "this browser blocked sound, so it plays muted");
+        v.play().catch(function () {});
+      }
+    });
+  }
+
   function debugLine(key, val) {
     if (cfg.debug !== "1") { return; }
     var d = $("dbg");
@@ -869,7 +887,7 @@
     v.addEventListener("ended", function () {
       jfState.curId = "";
       jfSave();
-      if (triviaDue()) { playTrivia(jfPlayNext); } else { jfPlayNext(); }
+      if (triviaDue()) { playTrivia(jfPlayNext); } else { triviaNote(); jfPlayNext(); }
     });
     v.addEventListener("error", function () {
       debugLine("video", "error " + (v.error ? v.error.code : "?"));
@@ -881,7 +899,7 @@
     });
     videoBox.appendChild(v);
     jfState.video = v;
-    v.play().catch(function () {});
+    playOrMute(v);
   }
 
   // ---------- Trivia breaks ----------
@@ -906,8 +924,9 @@
 
   function triviaNote() {
     if (cfg.trivia !== "1") { return; }
-    var mins = Math.max(0, Math.ceil((triviaState().last + num(cfg.triviaevery, 30) * 60000 - Date.now()) / 60000));
-    debugLine("trivia", mins ? "next break when a video ends " + mins + "+ min from now" : "next break when this video ends");
+    var every = num(cfg.triviaevery, 30);
+    var mins = Math.max(0, Math.ceil((triviaState().last + every * 60000 - Date.now()) / 60000));
+    debugLine("trivia", "every " + every + " min, " + (mins ? "next break when a video ends " + mins + "+ min from now" : "next break when this video ends"));
   }
 
   // Read the file again for every break, so edits show up without a reload.
@@ -1282,7 +1301,7 @@
   // ---------- Pick up new versions of this page automatically ----------
   // Bump PAGE_VERSION whenever this file changes. Players compare it against the
   // copy on GitHub and reload (with a cache-busting parameter) when it differs.
-  var PAGE_VERSION = "2026-11-17.1";
+  var PAGE_VERSION = "2026-11-17.2";
   debugLine("page", "version " + PAGE_VERSION);
   var su = num(cfg.selfupdate, 10);
   if (su > 0 && location.protocol.indexOf("http") === 0) {
