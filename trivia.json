@@ -1,43 +1,185 @@
 {
-  "about": "Trivia for the lobby screens (signage.html with trivia=1). Each break shows the next few items in this order, then picks up where it left off next time. An item is either {\"type\":\"qa\",\"q\":question,\"a\":answer,\"detail\":one more line} or {\"type\":\"fact\",\"text\":fun fact}. Sources for every item are in the speaker notes of the Lobby Trivia deck.",
+  "about": "Trivia for the lobby screens (signage.html with trivia=1). Each break shows the next few items in this order, then picks up where it left off next time. An item is {\"type\":\"qa\",\"q\":question,\"a\":answer,\"detail\":one more line}, {\"type\":\"fact\",\"text\":fun fact} or {\"type\":\"word\",\"word\":word,\"pos\":part of speech,\"def\":meaning,\"example\":one more line}. Edit lobby-deck/items.py and run build.py rather than this file, so the deck stays in step. Sources for every item are in the speaker notes of the Lobby Trivia deck.",
   "items": [
+    {
+      "type": "qa",
+      "q": "What handy grocery store invention was first rolled out in Oklahoma City in 1937?",
+      "a": "The shopping cart",
+      "detail": "Sylvan Goldman introduced it at his Humpty Dumpty grocery stores in June 1937."
+    },
+    {
+      "type": "word",
+      "word": "petrichor",
+      "pos": "noun",
+      "def": "The earthy smell in the air when rain falls on dry ground.",
+      "example": "Two Australian scientists made up this word in 1964."
+    },
+    {
+      "type": "qa",
+      "q": "What year did NTHS first open its doors?",
+      "a": "1978",
+      "detail": "Ground was broken in 1977, and the first building was finished in February 1978."
+    },
     {
       "type": "qa",
       "q": "What famous highway runs right through downtown Miami?",
       "a": "Route 66",
-      "detail": "The Coleman Theatre opened on Miami’s Route 66 Main Street on April 18, 1929."
+      "detail": "The Coleman Theatre opened on Miami's Route 66 Main Street on April 18, 1929."
+    },
+    {
+      "type": "qa",
+      "q": "Where was the world's first parking meter put in?",
+      "a": "Oklahoma City",
+      "detail": "It went in on July 16, 1935, and parking cost a nickel an hour."
+    },
+    {
+      "type": "word",
+      "word": "serendipity",
+      "pos": "noun",
+      "def": "Finding something good when you weren't looking for it.",
+      "example": "By pure serendipity, she found her favorite book at a yard sale."
+    },
+    {
+      "type": "fact",
+      "text": "When the first clinic was finished in 1978, its equipment came in crates and no help was available. So the first employee, Ted Bearden, brought his own toolbox and put the whole clinic together himself."
     },
     {
       "type": "qa",
       "q": "Near Miami, part of the original Route 66 is only 9 feet wide. What is it called?",
       "a": "The Ribbon Road",
-      "detail": "It’s also called the Sidewalk Highway. It was finished in 1922 and runs between Miami and Afton."
-    },
-    {
-      "type": "fact",
-      "text": "Oklahoma has more than 200 man-made lakes. That’s more than any other state."
+      "detail": "It's also called the Sidewalk Highway. It was finished in 1922 and runs between Miami and Afton."
     },
     {
       "type": "qa",
-      "q": "What is Oklahoma’s state bird?",
+      "q": "What is the highest point in Oklahoma?",
+      "a": "Black Mesa",
+      "detail": "It's 4,973 feet above sea level, out at the far west end of the Panhandle."
+    },
+    {
+      "type": "word",
+      "word": "persnickety",
+      "pos": "adjective",
+      "def": "Very fussy about small details.",
+      "example": "Grandpa is persnickety about how the lawn gets mowed."
+    },
+    {
+      "type": "qa",
+      "q": "What was this clinic called when it first opened?",
+      "a": "Miami Indian Clinic",
+      "detail": "Back then it was a satellite clinic of Claremore Indian Hospital."
+    },
+    {
+      "type": "fact",
+      "text": "Oklahoma has more than 200 man-made lakes. That's more than any other state."
+    },
+    {
+      "type": "fact",
+      "text": "Oklahoma has an official state meal, adopted in 1988. It includes chicken-fried steak, fried okra, cornbread, black-eyed peas and pecan pie."
+    },
+    {
+      "type": "word",
+      "word": "kerfuffle",
+      "pos": "noun",
+      "def": "A fuss or commotion, usually over something small.",
+      "example": "There was quite a kerfuffle when the coffee pot broke."
+    },
+    {
+      "type": "qa",
+      "q": "What year did NTHS move into this building?",
+      "a": "2012",
+      "detail": "The clinic has grown from 60 employees when it opened to about 130 today."
+    },
+    {
+      "type": "qa",
+      "q": "What is Oklahoma's state bird?",
       "a": "The scissor-tailed flycatcher",
-      "detail": "Oklahoma made it the state bird in 1951. It’s on Oklahoma’s state quarter, too."
+      "detail": "Oklahoma made it the state bird in 1951. It's on Oklahoma's state quarter, too."
+    },
+    {
+      "type": "qa",
+      "q": "Oklahoma's official state vegetable is something most people call a fruit. What is it?",
+      "a": "Watermelon",
+      "detail": "Lawmakers made it the state vegetable in 2007. The strawberry is the state fruit."
+    },
+    {
+      "type": "word",
+      "word": "gregarious",
+      "pos": "adjective",
+      "def": "Friendly and happiest when other people are around.",
+      "example": "Our gregarious neighbor knows everyone on the block."
+    },
+    {
+      "type": "qa",
+      "q": "In 2016, the Miami Area Chamber of Commerce gave NTHS what award?",
+      "a": "Business of the Year",
+      "detail": "NTHS is a proud member of the Miami Chamber of Commerce."
     },
     {
       "type": "qa",
       "q": "Which baseball legend grew up in nearby Commerce?",
       "a": "Mickey Mantle",
-      "detail": "They called him “The Commerce Comet.” He joined the Baseball Hall of Fame in 1974."
-    },
-    {
-      "type": "fact",
-      "text": "On opening night in 1929, all 1,600 seats at Miami’s Coleman Theatre sold out at $1 each."
+      "detail": "They called him \"The Commerce Comet.\" He joined the Baseball Hall of Fame in 1974."
     },
     {
       "type": "qa",
-      "q": "Which dam created Grand Lake o’ the Cherokees in 1940?",
+      "q": "Which Route 66 landmark near Tulsa was built as an anniversary gift?",
+      "a": "The Blue Whale of Catoosa",
+      "detail": "Hugh Davis built it in the early 1970s for his wife, Zelta, who collected whale figurines."
+    },
+    {
+      "type": "word",
+      "word": "bumfuzzle",
+      "pos": "verb",
+      "def": "To confuse or fluster someone.",
+      "example": "The new TV remote bumfuzzled the whole family."
+    },
+    {
+      "type": "fact",
+      "text": "The NTHS lab won COLA's Laboratory Excellence Award for 2016-2017. It's COLA's highest honor for a lab."
+    },
+    {
+      "type": "fact",
+      "text": "On opening night in 1929, all 1,600 seats at Miami's Coleman Theatre sold out at $1 each."
+    },
+    {
+      "type": "qa",
+      "q": "How tall is the Golden Driller statue in Tulsa?",
+      "a": "76 feet",
+      "detail": "It weighs 43,500 pounds and has been Oklahoma's official state monument since 1979."
+    },
+    {
+      "type": "word",
+      "word": "ebullient",
+      "pos": "adjective",
+      "def": "Bubbling over with cheer and energy.",
+      "example": "The team was ebullient after the big win."
+    },
+    {
+      "type": "qa",
+      "q": "How early does the NTHS Wellness Center open on weekdays?",
+      "a": "5 a.m.",
+      "detail": "It stays open until 8 p.m., and it's free for NTHS patients."
+    },
+    {
+      "type": "qa",
+      "q": "Which dam created Grand Lake o' the Cherokees in 1940?",
       "a": "Pensacola Dam",
       "detail": "With 51 arches, it was the longest multiple-arch dam in the world when it was built."
+    },
+    {
+      "type": "fact",
+      "text": "Waylan's Ku-Ku Burger opened on Miami's Main Street in 1965. It's the last one left from a chain of about 200 Ku-Ku restaurants."
+    },
+    {
+      "type": "word",
+      "word": "lollygag",
+      "pos": "verb",
+      "def": "To waste time by dawdling or fooling around.",
+      "example": "Quit lollygagging, or we'll miss the bus."
+    },
+    {
+      "type": "fact",
+      "text": "The Healthy Living Program has a teaching kitchen with four cooking stations. Its dietitians teach free cooking classes every month."
     },
     {
       "type": "qa",
@@ -46,8 +188,46 @@
       "detail": "It goes around about every 90 minutes, so the crew sees 16 sunrises and 16 sunsets a day."
     },
     {
+      "type": "qa",
+      "q": "What is Oklahoma's state tree?",
+      "a": "The redbud",
+      "detail": "It was adopted in 1937. Its pink blossoms show up in early spring, before its leaves."
+    },
+    {
+      "type": "word",
+      "word": "mellifluous",
+      "pos": "adjective",
+      "def": "Sweet and smooth to listen to.",
+      "example": "The singer's mellifluous voice filled the room."
+    },
+    {
+      "type": "qa",
+      "q": "Up to what age can patients be seen in NTHS Pediatrics?",
+      "a": "Age 21",
+      "detail": "Pediatrics cares for patients from birth up to 21, with well-child exams, screenings and shots."
+    },
+    {
       "type": "fact",
-      "text": "The Moon drifts about 1.5 inches farther from Earth every year. That’s about as fast as your fingernails grow."
+      "text": "The Moon drifts about 1.5 inches farther from Earth every year. That's about as fast as your fingernails grow."
+    },
+    {
+      "type": "qa",
+      "q": "What is the nickname of Oklahoma's state reptile, the collared lizard?",
+      "a": "Mountain boomer",
+      "detail": "Settlers thought it made a booming call, but the lizard is actually silent."
+    },
+    {
+      "type": "word",
+      "word": "gumption",
+      "pos": "noun",
+      "def": "Common sense, plus the get-up-and-go to act on it.",
+      "example": "It took real gumption to start her own business."
+    },
+    {
+      "type": "qa",
+      "q": "NTHS Rehabilitation offers physical therapy, occupational therapy and what else?",
+      "a": "Speech therapy",
+      "detail": "Physical therapy here even includes aquatic therapy."
     },
     {
       "type": "qa",
@@ -56,14 +236,59 @@
       "detail": "One spin takes 243 Earth days. One trip around the Sun takes about 225."
     },
     {
+      "type": "fact",
+      "text": "Astronaut Tom Stafford, who commanded Apollo 10 in 1969, grew up in Weatherford, Oklahoma. The space museum there is named for him."
+    },
+    {
+      "type": "word",
+      "word": "skedaddle",
+      "pos": "verb",
+      "def": "To run off in a hurry.",
+      "example": "The cat skedaddled the second the vacuum came on."
+    },
+    {
+      "type": "fact",
+      "text": "NTHS has its own phone app. Look for NTHS in the Apple App Store or on Google Play."
+    },
+    {
       "type": "qa",
       "q": "What is the official national mammal of the United States?",
       "a": "The American bison",
       "detail": "It became the national mammal in 2016, under the National Bison Legacy Act."
     },
     {
+      "type": "qa",
+      "q": "What is Oklahoma's official state drink?",
+      "a": "Milk",
+      "detail": "It was first named the state beverage in 1985, after a young 4-H member noticed Oklahoma didn't have one."
+    },
+    {
+      "type": "word",
+      "word": "hullabaloo",
+      "pos": "noun",
+      "def": "A noisy commotion or uproar.",
+      "example": "The hullabaloo outside turned out to be a marching band."
+    },
+    {
+      "type": "fact",
+      "text": "Pharmacy refill requests made before 11 a.m. are ready the next business day after 1 p.m."
+    },
+    {
       "type": "fact",
       "text": "Hummingbirds are the only birds that can truly fly backwards."
+    },
+    {
+      "type": "qa",
+      "q": "What became Oklahoma's official state song in 1953?",
+      "a": "\"Oklahoma!\"",
+      "detail": "It comes from the Rodgers and Hammerstein musical of the same name."
+    },
+    {
+      "type": "word",
+      "word": "effervescent",
+      "pos": "adjective",
+      "def": "Bubbly. It can mean fizzy, like soda, or lively, like a cheerful person.",
+      "example": "Her effervescent laugh made everyone smile."
     },
     {
       "type": "qa",
@@ -72,24 +297,49 @@
       "detail": "Two pump blood through its gills and one pumps it to the rest of its body. Its blood is blue."
     },
     {
+      "type": "fact",
+      "text": "Oklahoma has more miles of the original Route 66 left to drive than any other state."
+    },
+    {
+      "type": "word",
+      "word": "flabbergasted",
+      "pos": "adjective",
+      "def": "So surprised you can hardly speak.",
+      "example": "He was flabbergasted when he won the raffle."
+    },
+    {
       "type": "qa",
       "q": "What do you call a group of flamingos?",
       "a": "A flamboyance",
       "detail": "You can also call it a colony or a stand, but flamboyance is the fun one."
     },
     {
+      "type": "word",
+      "word": "resilient",
+      "pos": "adjective",
+      "def": "Able to bounce back after something hard.",
+      "example": "Redbud trees are resilient enough for Oklahoma weather."
+    },
+    {
       "type": "fact",
       "text": "Your heart beats about 100,000 times a day."
     },
     {
+      "type": "word",
+      "word": "wanderlust",
+      "pos": "noun",
+      "def": "A strong wish to travel and see the world.",
+      "example": "A drive down Route 66 is a cure for wanderlust."
+    },
+    {
       "type": "qa",
-      "q": "What was silent film star Buster Keaton’s nickname?",
+      "q": "What was silent film star Buster Keaton's nickname?",
       "a": "The Great Stone Face",
       "detail": "He kept a perfectly straight face through his wildest stunts."
     },
     {
       "type": "qa",
-      "q": "What is the name of Charlie Chaplin’s most famous character?",
+      "q": "What is the name of Charlie Chaplin's most famous character?",
       "a": "The Tramp",
       "detail": "Audiences first met him in 1914, in a short film called Kid Auto Races at Venice."
     },

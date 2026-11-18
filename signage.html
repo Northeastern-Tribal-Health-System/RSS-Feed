@@ -45,7 +45,7 @@
     triviaevery  Minutes between trivia breaks (default: 30). A break only starts when a
                  video ends, never in the middle of one. 0 = after every video, for testing.
     triviaitems  Items per break (default: 3, e.g. two questions and a fun fact)
-    triviaq      Seconds a question or fun fact stays up (default: 12)
+    triviaq      Seconds a question or fun fact stays up (default: 12; a word of the day gets 3 more)
     triviaa      Seconds an answer stays up (default: 10)
     triviafile   Trivia file (default: trivia.json next to this page; edit it to change the trivia)
     ads          Commercial breaks between Jellyfin videos (default: 1 = on, 0 = off). A break
@@ -182,6 +182,13 @@
   .trivia.fact .tv-eyebrow { color: #13241a; }
   .trivia.fact .tv-rule { background: #13241a; }
   .trivia.fact .tv-main { color: #13241a; }
+  .trivia.word { background: #1b3324; }
+  .trivia.word .tv-eyebrow { color: #9fd3a0; }
+  .trivia.word .tv-rule { background: #9fd3a0; }
+  .trivia.word .tv-main { color: #f1ecc8; font-size: 110px; font-weight: 900; line-height: 1.05; }
+  .trivia.word .tv-sub { color: #f3f6f1; font-size: 44px; }
+  .trivia.word .tv-pos { color: #ffd54a; font-style: italic; margin-right: 14px; }
+  .trivia.word .tv-ex { color: #b8c8ba; font-size: 34px; font-style: italic; }
   @keyframes trivia-in { from { opacity: 0; } }
 
   #dbg {
@@ -968,7 +975,10 @@
       .then(function (r) { if (!r.ok) { throw new Error("HTTP " + r.status); } return r.json(); })
       .then(function (data) {
         var items = (data.items || []).filter(function (it) {
-          return it && (it.type === "fact" ? it.text : (it.q && it.a));
+          if (!it) { return false; }
+          if (it.type === "fact") { return !!it.text; }
+          if (it.type === "word") { return !!(it.word && it.def); }
+          return !!(it.q && it.a);
         });
         if (items.length) { triviaItems = items; }
         return triviaItems;
@@ -979,13 +989,19 @@
       });
   }
 
-  function triviaSlide(kind, eyebrow, main, sub) {
-    var box = el("div", "trivia " + kind);
-    box.appendChild(el("p", "tv-eyebrow", eyebrow));
+  function triviaSlide(sl) {
+    var box = el("div", "trivia " + sl.kind);
+    box.appendChild(el("p", "tv-eyebrow", sl.eyebrow));
     box.appendChild(el("div", "tv-rule"));
     var body = el("div", "tv-body");
-    body.appendChild(el("p", "tv-main", main));
-    if (sub) { body.appendChild(el("p", "tv-sub", sub)); }
+    body.appendChild(el("p", "tv-main", sl.main));
+    if (sl.sub) {
+      var sub = el("p", "tv-sub");
+      if (sl.pos) { sub.appendChild(el("span", "tv-pos", sl.pos)); }
+      sub.appendChild(document.createTextNode(sl.sub));
+      body.appendChild(sub);
+    }
+    if (sl.ex) { body.appendChild(el("p", "tv-ex", sl.ex)); }
     box.appendChild(body);
     return box;
   }
@@ -1005,6 +1021,9 @@
         var it = items[(start + i) % items.length];
         if (it.type === "fact") {
           slides.push({ kind: "fact", eyebrow: "Did you know?", main: it.text, secs: num(cfg.triviaq, 12) });
+        } else if (it.type === "word") {
+          slides.push({ kind: "word", eyebrow: "Word of the Day", main: it.word, pos: it.pos || "", sub: it.def,
+                        ex: it.example || "", secs: num(cfg.triviaq, 12) + 3 });
         } else {
           slides.push({ kind: "q", eyebrow: "Trivia", main: it.q, sub: "Answer coming up", secs: num(cfg.triviaq, 12) });
           slides.push({ kind: "a", eyebrow: "Answer", main: it.a, sub: it.detail || "", secs: num(cfg.triviaa, 10) });
@@ -1022,7 +1041,7 @@
         }
         var sl = slides[n++];
         videoBox.innerHTML = "";
-        videoBox.appendChild(triviaSlide(sl.kind, sl.eyebrow, sl.main, sl.sub));
+        videoBox.appendChild(triviaSlide(sl));
         debugLine("trivia", "break, slide " + n + " of " + slides.length);
         setTimeout(show, Math.max(3, sl.secs) * 1000);
       })();
@@ -1542,7 +1561,7 @@
   // ---------- Pick up new versions of this page automatically ----------
   // Bump PAGE_VERSION whenever this file changes. Players compare it against the
   // copy on GitHub and reload (with a cache-busting parameter) when it differs.
-  var PAGE_VERSION = "2026-11-18.1";
+  var PAGE_VERSION = "2026-11-18.2";
   debugLine("page", "version " + PAGE_VERSION);
   var su = num(cfg.selfupdate, 10);
   if (su > 0 && location.protocol.indexOf("http") === 0) {
