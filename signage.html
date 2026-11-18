@@ -48,6 +48,14 @@
     triviaq      Seconds a question or fun fact stays up (default: 12)
     triviaa      Seconds an answer stays up (default: 10)
     triviafile   Trivia file (default: trivia.json next to this page; edit it to change the trivia)
+    ads          Commercial breaks between Jellyfin videos (default: 1 = on). The spots come
+                 from the Jellyfin library named in adslib. If that library does not exist,
+                 is empty, or the signage user cannot see it, no breaks play. 0 = off.
+    adslib       Library the spots come from (default: Commercials)
+    adsevery     Minutes between commercial breaks (default: 15). Like trivia, a break only
+                 starts when a video ends. 0 = after every video, for testing.
+    adsmax       Seconds of spots per break (default: 150; always at least one spot). Spots
+                 play in a shuffle with no repeats until every one has played.
 -->
 <style>
   :root {
@@ -475,7 +483,11 @@
     triviaitems: "3",
     triviaq: "12",
     triviaa: "10",
-    triviafile: "trivia.json"
+    triviafile: "trivia.json",
+    ads: "1",
+    adslib: "Commercials",
+    adsevery: "15",
+    adsmax: "150"
   };
   var extra = window.SIGNAGE_CONFIG || {};
   Object.keys(extra).forEach(function (k) { cfg[k] = String(extra[k]); });
@@ -842,9 +854,9 @@
     d.textContent = Object.keys(debugLine.state).map(function (k) { return k + ": " + debugLine.state[k]; }).join("\n");
   }
 
-  function jfPlayItem(item, startAt) {
+  // A fresh video element for a Jellyfin item, with its captions loading.
+  function jfVideoFor(item) {
     var ms = item.MediaSources[0];
-    jfState.curId = item.Id;
     var subs = (ms.MediaStreams || []).filter(function (s) { return s.Type === "Subtitle" && s.IsTextSubtitleStream; });
     var useCc = cfg.cc !== "0" && subs.length > 0;
     ccRun++;
@@ -871,6 +883,12 @@
         });
     }
     v.src = jfUrl("/Videos/" + item.Id + "/stream", { static: "true", mediaSourceId: ms.Id });
+    return v;
+  }
+
+  function jfPlayItem(item, startAt) {
+    jfState.curId = item.Id;
+    var v = jfVideoFor(item);
     if (startAt > 5) {
       // resume a few seconds early, unless the video was nearly over
       v.addEventListener("loadedmetadata", function () {
@@ -887,7 +905,7 @@
     v.addEventListener("ended", function () {
       jfState.curId = "";
       jfSave();
-      if (triviaDue()) { playTrivia(jfPlayNext); } else { triviaNote(); jfPlayNext(); }
+      afterShow();
     });
     v.addEventListener("error", function () {
       debugLine("video", "error " + (v.error ? v.error.code : "?"));
@@ -996,10 +1014,133 @@
     });
   }
 
+  // ---------- Commercial breaks ----------
+  // With ads on (the default), spots from the Jellyfin library named in adslib
+  // play after a show ends, once adsevery minutes have passed since the last
+  // break: a few spots, up to adsmax seconds. They play in a shuffle, every spot
+  // once before any repeats. If the library is missing or empty, nothing plays.
+  // Only one break follows a show: commercials if due, otherwise trivia if due.
+  var ADS_KEY = "nths-signage-ads:" + String(cfg.adslib).toLowerCase();
+  var adsState = { items: [], byId: {}, loadedAt: 0, note: "" };
+
+  function adsSaved() {
+    var s = recall(ADS_KEY) || {};
+    if (!s.last) { s.last = Date.now(); s.queue = s.queue || []; store(ADS_KEY, s); }
+    s.queue = s.queue || [];
+    return s;
+  }
+
+  function adsLoad() {
+    if (cfg.ads === "0") { return Promise.resolve(0); }
+    var fresh = Date.now() - adsState.loadedAt < num(cfg.jfrefresh, 30) * 60000;
+    if (adsState.loadedAt && fresh) { return Promise.resolve(adsState.items.length); }
+    var userStep = jfState.userId ? Promise.resolve(jfState.userId) :
+      jfJson("/Users/Me").then(function (me) { jfState.userId = me.Id; return me.Id; });
+    return userStep.then(function (uid) {
+      return jfJson("/UserViews", { userId: uid }).then(function (views) {
+        var want = String(cfg.adslib).toLowerCase();
+        var lib = (views.Items || []).filter(function (v) { return String(v.Name).toLowerCase() === want; })[0];
+        if (!lib) { return { Items: [] }; }
+        return jfJson("/Items", {
+          userId: uid, parentId: lib.Id, recursive: "true",
+          includeItemTypes: "Video,Movie,Episode,MusicVideo",
+          fields: "MediaSources", sortBy: "SortName", sortOrder: "Ascending"
+        });
+      });
+    }).then(function (res) {
+      adsState.items = (res.Items || []).filter(function (it) { return it.MediaSources && it.MediaSources.length; });
+      adsState.byId = {};
+      adsState.items.forEach(function (it) { adsState.byId[it.Id] = it; });
+      adsState.loadedAt = Date.now();
+      adsState.note = adsState.items.length ? adsState.items.length + " spots in " + cfg.adslib :
+        "no spots (no library named " + cfg.adslib + ", or it is empty)";
+      return adsState.items.length;
+    }).catch(function (e) {
+      console.warn("Commercials failed to load: " + (e.message || e));
+      adsState.loadedAt = Date.now();
+      adsState.note = "could not load: " + (e.message || e);
+      return adsState.items.length;
+    });
+  }
+
+  function adsNote() {
+    if (cfg.ads === "0") { debugLine("ads", "turned off"); return; }
+    var every = num(cfg.adsevery, 15);
+    var mins = Math.max(0, Math.ceil((adsSaved().last + every * 60000 - Date.now()) / 60000));
+    debugLine("ads", (adsState.note || "checking " + cfg.adslib) + "; every " + every + " min, " +
+      (mins ? "next break when a show ends " + mins + "+ min from now" : "next break when this show ends"));
+  }
+
+  // Spots for one break: the next ones in the shuffle, up to adsmax seconds.
+  function adsPick() {
+    var s = adsSaved();
+    var have = adsState.byId;
+    s.queue = s.queue.filter(function (id) { return have[id]; });
+    if (!s.queue.length) {
+      s.queue = jfShuffle(adsState.items.map(function (it) { return it.Id; }));
+      if (s.queue.length > 1 && s.queue[0] === s.lastId) { s.queue.push(s.queue.shift()); }
+    }
+    var max = num(cfg.adsmax, 150), total = 0, picked = [];
+    while (s.queue.length) {
+      var it = have[s.queue[0]];
+      var secs = it.RunTimeTicks ? it.RunTimeTicks / 1e7 : 60;
+      if (picked.length && total + secs > max) { break; }
+      picked.push(it);
+      total += secs;
+      s.lastId = s.queue.shift();
+    }
+    s.last = Date.now();
+    store(ADS_KEY, s);
+    return picked;
+  }
+
+  function playAds(spots, done) {
+    var n = 0;
+    (function next() {
+      if (n >= spots.length) { adsNote(); done(); return; }
+      var item = spots[n++];
+      var v = jfVideoFor(item);
+      var finished = false;
+      var secs = item.RunTimeTicks ? item.RunTimeTicks / 1e7 : 120;
+      // never let a stuck spot hold up the screen
+      var watchdog = setTimeout(function () { finish("took too long"); }, (secs + 30) * 1000);
+      function finish(why) {
+        if (finished) { return; }
+        finished = true;
+        clearTimeout(watchdog);
+        if (why) { console.warn("Commercial skipped (" + why + "): " + item.Name); }
+        next();
+      }
+      debugLine("ads", "break, spot " + n + " of " + spots.length);
+      v.addEventListener("ended", function () { finish(""); });
+      v.addEventListener("error", function () { finish("error " + (v.error ? v.error.code : "?")); });
+      videoBox.appendChild(v);
+      jfState.video = v;
+      playOrMute(v);
+    })();
+  }
+
+  function afterShow() {
+    var adsDue = cfg.ads !== "0" && Date.now() - adsSaved().last >= num(cfg.adsevery, 15) * 60000;
+    var check = adsDue ? adsLoad() : Promise.resolve(0);
+    check.then(function (count) {
+      if (adsDue && count) {
+        playAds(adsPick(), jfPlayNext);
+      } else if (triviaDue()) {
+        playTrivia(jfPlayNext);
+      } else {
+        triviaNote();
+        adsNote();
+        jfPlayNext();
+      }
+    });
+  }
+
   function startJellyfin() {
     jfState.items = [];
     window.addEventListener("pagehide", jfSave);
     triviaNote();
+    adsLoad().then(adsNote);
     jfPlayNext();
   }
 
@@ -1301,7 +1442,7 @@
   // ---------- Pick up new versions of this page automatically ----------
   // Bump PAGE_VERSION whenever this file changes. Players compare it against the
   // copy on GitHub and reload (with a cache-busting parameter) when it differs.
-  var PAGE_VERSION = "2026-11-17.2";
+  var PAGE_VERSION = "2026-11-18.1";
   debugLine("page", "version " + PAGE_VERSION);
   var su = num(cfg.selfupdate, 10);
   if (su > 0 && location.protocol.indexOf("http") === 0) {
