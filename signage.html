@@ -48,14 +48,19 @@
     triviaq      Seconds a question or fun fact stays up (default: 12)
     triviaa      Seconds an answer stays up (default: 10)
     triviafile   Trivia file (default: trivia.json next to this page; edit it to change the trivia)
-    ads          Commercial breaks between Jellyfin videos (default: 1 = on). The spots come
-                 from the Jellyfin library named in adslib. If that library does not exist,
-                 is empty, or the signage user cannot see it, no breaks play. 0 = off.
-    adslib       Library the spots come from (default: Commercials)
-    adsevery     Minutes between commercial breaks (default: 15). Like trivia, a break only
-                 starts when a video ends. 0 = after every video, for testing.
-    adsmax       Seconds of spots per break (default: 150; always at least one spot). Spots
-                 play in a shuffle with no repeats until every one has played.
+    ads          Commercial breaks between Jellyfin videos (default: 1 = on, 0 = off). A break
+                 opens with one clinic promo from promolib, then vintage spots from adslib
+                 fill the rest of the break. Each library plays in a shuffle, every item once
+                 before any repeats. A library that is missing, empty, or hidden from the
+                 signage user is skipped; with nothing in either, no break plays.
+    promolib     Library of clinic promos: videos, or flyer images (default: Clinic Promos;
+                 none = no promos). A file named with "until 2026-12-15" stops showing after
+                 that day; "from 2026-12-01" waits until that day.
+    promosecs    Seconds a flyer image stays up (default: 12)
+    adslib       Library of vintage spots (default: Commercials; none = no vintage spots)
+    adsevery     Minutes between breaks (default: 15). Like trivia, a break only starts when
+                 a video ends. 0 = after every video, for testing.
+    adsmax       Seconds per break (default: 150). There is always at least one item.
 -->
 <style>
   :root {
@@ -113,6 +118,14 @@
     border: 0;
     display: block;
     background: #000;
+  }
+  #video img.flyer {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    background: #000;
+    animation: trivia-in 0.6s ease-out both;
   }
   #cc {
     position: absolute;
@@ -485,6 +498,8 @@
     triviaa: "10",
     triviafile: "trivia.json",
     ads: "1",
+    promolib: "Clinic Promos",
+    promosecs: "12",
     adslib: "Commercials",
     adsevery: "15",
     adsmax: "150"
@@ -1015,103 +1030,188 @@
   }
 
   // ---------- Commercial breaks ----------
-  // With ads on (the default), spots from the Jellyfin library named in adslib
-  // play after a show ends, once adsevery minutes have passed since the last
-  // break: a few spots, up to adsmax seconds. They play in a shuffle, every spot
-  // once before any repeats. If the library is missing or empty, nothing plays.
+  // With ads on (the default), a short break plays after a show ends, once
+  // adsevery minutes have passed since the last one. It opens with one clinic
+  // promo from promolib (a video, or a flyer image shown for promosecs seconds),
+  // then vintage spots from adslib fill the rest of adsmax seconds. Each library
+  // plays in a shuffle, every item once before any repeats, saved on the player.
+  // A library that is missing or empty is skipped; with nothing in either, no
+  // break plays. A file named with "until 2026-12-15" stops showing after that
+  // day, and "from 2026-12-01" waits until that day.
   // Only one break follows a show: commercials if due, otherwise trivia if due.
-  var ADS_KEY = "nths-signage-ads:" + String(cfg.adslib).toLowerCase();
-  var adsState = { items: [], byId: {}, loadedAt: 0, note: "" };
+  var BREAK_KEY = "nths-signage-breaks:" + String(cfg.jflib).toLowerCase();
 
-  function adsSaved() {
-    var s = recall(ADS_KEY) || {};
-    if (!s.last) { s.last = Date.now(); s.queue = s.queue || []; store(ADS_KEY, s); }
-    s.queue = s.queue || [];
+  function spotSource(label, lib) {
+    return { label: label, lib: String(lib || ""), key: "nths-signage-spots:" + String(lib || "").toLowerCase(),
+             all: [], items: [], byId: {}, loadedAt: 0, note: "" };
+  }
+  var promoSrc = spotSource("promos", cfg.promolib);
+  var adSrc = spotSource("spots", cfg.adslib);
+
+  function libOff(name) {
+    var n = String(name || "").toLowerCase();
+    return !n || n === "none" || n === "0";
+  }
+
+  function todayYmd() {
+    try {
+      return new Intl.DateTimeFormat("en-CA", { timeZone: cfg.tz, year: "numeric", month: "2-digit", day: "2-digit" })
+        .format(new Date()).replace(/[^0-9]/g, "");
+    } catch (e) {
+      var d = new Date();
+      return String(d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate());
+    }
+  }
+
+  function inDateWindow(it, today) {
+    var name = (it.Name || "") + " " + (it.Path || "");
+    var until = /until\s*(\d{4})-(\d{2})-(\d{2})/i.exec(name);
+    var from = /from\s*(\d{4})-(\d{2})-(\d{2})/i.exec(name);
+    if (until && today > until[1] + until[2] + until[3]) { return false; }
+    if (from && today < from[1] + from[2] + from[3]) { return false; }
+    return true;
+  }
+
+  function breakSaved() {
+    var s = recall(BREAK_KEY) || {};
+    if (!s.last) { s.last = Date.now(); store(BREAK_KEY, s); }
     return s;
   }
 
-  function adsLoad() {
-    if (cfg.ads === "0") { return Promise.resolve(0); }
-    var fresh = Date.now() - adsState.loadedAt < num(cfg.jfrefresh, 30) * 60000;
-    if (adsState.loadedAt && fresh) { return Promise.resolve(adsState.items.length); }
-    var userStep = jfState.userId ? Promise.resolve(jfState.userId) :
-      jfJson("/Users/Me").then(function (me) { jfState.userId = me.Id; return me.Id; });
-    return userStep.then(function (uid) {
+  function spotLoad(src) {
+    if (cfg.ads === "0" || libOff(src.lib)) { src.items = []; src.byId = {}; src.note = "no " + src.label; return Promise.resolve(0); }
+    var fresh = src.loadedAt && Date.now() - src.loadedAt < num(cfg.jfrefresh, 30) * 60000;
+    var read = fresh ? Promise.resolve() : (jfState.userId ? Promise.resolve(jfState.userId) :
+      jfJson("/Users/Me").then(function (me) { jfState.userId = me.Id; return me.Id; })
+    ).then(function (uid) {
       return jfJson("/UserViews", { userId: uid }).then(function (views) {
-        var want = String(cfg.adslib).toLowerCase();
+        var want = src.lib.toLowerCase();
         var lib = (views.Items || []).filter(function (v) { return String(v.Name).toLowerCase() === want; })[0];
-        if (!lib) { return { Items: [] }; }
+        if (!lib) { return { Items: [], missing: true }; }
         return jfJson("/Items", {
           userId: uid, parentId: lib.Id, recursive: "true",
-          includeItemTypes: "Video,Movie,Episode,MusicVideo",
-          fields: "MediaSources", sortBy: "SortName", sortOrder: "Ascending"
+          includeItemTypes: "Video,Movie,Episode,MusicVideo,Photo",
+          fields: "MediaSources,Path", sortBy: "SortName", sortOrder: "Ascending"
         });
       });
     }).then(function (res) {
-      adsState.items = (res.Items || []).filter(function (it) { return it.MediaSources && it.MediaSources.length; });
-      adsState.byId = {};
-      adsState.items.forEach(function (it) { adsState.byId[it.Id] = it; });
-      adsState.loadedAt = Date.now();
-      adsState.note = adsState.items.length ? adsState.items.length + " spots in " + cfg.adslib :
-        "no spots (no library named " + cfg.adslib + ", or it is empty)";
-      return adsState.items.length;
+      src.all = (res.Items || []).filter(function (it) { return it.Type === "Photo" || (it.MediaSources && it.MediaSources.length); });
+      src.missing = !!res.missing;
+      src.failed = "";
+      src.loadedAt = Date.now();
     }).catch(function (e) {
-      console.warn("Commercials failed to load: " + (e.message || e));
-      adsState.loadedAt = Date.now();
-      adsState.note = "could not load: " + (e.message || e);
-      return adsState.items.length;
+      console.warn("Could not load " + src.lib + ": " + (e.message || e));
+      src.failed = e.message || String(e);
+      src.loadedAt = Date.now();
+    });
+    return read.then(function () {
+      // dates are checked at every break, so a promo drops off after its day without a reload
+      var today = todayYmd();
+      src.items = src.all.filter(function (it) { return inDateWindow(it, today); });
+      src.byId = {};
+      src.items.forEach(function (it) { src.byId[it.Id] = it; });
+      src.note = src.failed ? src.lib + " could not load (" + src.failed + ")" :
+        src.missing ? "no library named " + src.lib :
+        src.items.length + " " + src.label + " in " + src.lib +
+          (src.all.length > src.items.length ? " (" + (src.all.length - src.items.length) + " outside their dates)" : "");
+      return src.items.length;
     });
   }
 
-  function adsNote() {
-    if (cfg.ads === "0") { debugLine("ads", "turned off"); return; }
-    var every = num(cfg.adsevery, 15);
-    var mins = Math.max(0, Math.ceil((adsSaved().last + every * 60000 - Date.now()) / 60000));
-    debugLine("ads", (adsState.note || "checking " + cfg.adslib) + "; every " + every + " min, " +
-      (mins ? "next break when a show ends " + mins + "+ min from now" : "next break when this show ends"));
+  function spotSecs(it) {
+    if (it.Type === "Photo") { return Math.max(3, num(cfg.promosecs, 12)); }
+    return it.RunTimeTicks ? it.RunTimeTicks / 1e7 : 60;
   }
 
-  // Spots for one break: the next ones in the shuffle, up to adsmax seconds.
-  function adsPick() {
-    var s = adsSaved();
-    var have = adsState.byId;
-    s.queue = s.queue.filter(function (id) { return have[id]; });
-    if (!s.queue.length) {
-      s.queue = jfShuffle(adsState.items.map(function (it) { return it.Id; }));
-      if (s.queue.length > 1 && s.queue[0] === s.lastId) { s.queue.push(s.queue.shift()); }
+  // The next items in a library's shuffle, up to maxSecs; at least min of them.
+  // A break ends where a round ends, so nothing repeats inside one break.
+  function spotPick(src, maxSecs, min) {
+    var s = recall(src.key) || {};
+    var have = src.byId;
+    var queue = (s.queue || []).filter(function (id) { return have[id]; });
+    if (!queue.length) {
+      queue = jfShuffle(src.items.map(function (it) { return it.Id; }));
+      if (queue.length > 1 && queue[0] === s.lastId) { queue.push(queue.shift()); }
     }
-    var max = num(cfg.adsmax, 150), total = 0, picked = [];
-    while (s.queue.length) {
-      var it = have[s.queue[0]];
-      var secs = it.RunTimeTicks ? it.RunTimeTicks / 1e7 : 60;
-      if (picked.length && total + secs > max) { break; }
+    var picked = [], total = 0;
+    while (queue.length) {
+      var it = have[queue[0]];
+      var secs = spotSecs(it);
+      if (picked.length >= min && total + secs > maxSecs) { break; }
       picked.push(it);
       total += secs;
-      s.lastId = s.queue.shift();
+      s.lastId = queue.shift();
     }
-    s.last = Date.now();
-    store(ADS_KEY, s);
-    return picked;
+    s.queue = queue;
+    store(src.key, s);
+    return { items: picked, secs: total };
   }
 
-  function playAds(spots, done) {
+  function breakDue() {
+    return cfg.ads !== "0" && Date.now() - breakSaved().last >= num(cfg.adsevery, 15) * 60000;
+  }
+
+  function breakNote() {
+    if (cfg.ads === "0") { debugLine("breaks", "turned off"); return; }
+    var every = num(cfg.adsevery, 15);
+    var mins = Math.max(0, Math.ceil((breakSaved().last + every * 60000 - Date.now()) / 60000));
+    debugLine("breaks", (promoSrc.note || "checking " + promoSrc.lib) + ", " + (adSrc.note || "checking " + adSrc.lib) +
+      "; every " + every + " min, " + (mins ? "next when a show ends " + mins + "+ min from now" : "next when this show ends"));
+  }
+
+  function buildBreak() {
+    var s = breakSaved();
+    s.last = Date.now();
+    store(BREAK_KEY, s);
+    var max = num(cfg.adsmax, 150);
+    var promo = promoSrc.items.length ? spotPick(promoSrc, 0, 1) : { items: [], secs: 0 };
+    var ads = adSrc.items.length ? spotPick(adSrc, max - promo.secs, promo.items.length ? 0 : 1) : { items: [], secs: 0 };
+    return promo.items.concat(ads.items);
+  }
+
+  function playBreak(list, done) {
     var n = 0;
     (function next() {
-      if (n >= spots.length) { adsNote(); done(); return; }
-      var item = spots[n++];
-      var v = jfVideoFor(item);
-      var finished = false;
-      var secs = item.RunTimeTicks ? item.RunTimeTicks / 1e7 : 120;
-      // never let a stuck spot hold up the screen
-      var watchdog = setTimeout(function () { finish("took too long"); }, (secs + 30) * 1000);
+      if (n >= list.length) {
+        ccRun++;
+        videoBox.innerHTML = "";
+        jfState.video = null;
+        breakNote();
+        done();
+        return;
+      }
+      var item = list[n++];
+      var finished = false, watchdog = 0;
       function finish(why) {
         if (finished) { return; }
         finished = true;
         clearTimeout(watchdog);
-        if (why) { console.warn("Commercial skipped (" + why + "): " + item.Name); }
+        if (why) { console.warn("Break item skipped (" + why + "): " + item.Name); }
         next();
       }
-      debugLine("ads", "break, spot " + n + " of " + spots.length);
+      debugLine("breaks", "break, item " + n + " of " + list.length);
+      if (item.Type === "Photo") {
+        ccRun++;
+        videoBox.innerHTML = "";
+        jfState.video = null;
+        debugLine("playing", item.Name);
+        debugLine("captions", "none for this item");
+        var img = new Image();
+        img.className = "flyer";
+        img.alt = item.Name;
+        img.onload = function () {
+          clearTimeout(watchdog);
+          watchdog = setTimeout(function () { finish(""); }, spotSecs(item) * 1000);
+        };
+        img.onerror = function () { finish("image failed to load"); };
+        watchdog = setTimeout(function () { finish("image took too long"); }, 30000);
+        img.src = jfUrl("/Items/" + item.Id + "/Images/Primary", { maxWidth: "1920", quality: "90" });
+        videoBox.appendChild(img);
+        return;
+      }
+      var v = jfVideoFor(item);
+      // never let a stuck spot hold up the screen
+      watchdog = setTimeout(function () { finish("took too long"); }, (spotSecs(item) + 30) * 1000);
       v.addEventListener("ended", function () { finish(""); });
       v.addEventListener("error", function () { finish("error " + (v.error ? v.error.code : "?")); });
       videoBox.appendChild(v);
@@ -1121,16 +1221,16 @@
   }
 
   function afterShow() {
-    var adsDue = cfg.ads !== "0" && Date.now() - adsSaved().last >= num(cfg.adsevery, 15) * 60000;
-    var check = adsDue ? adsLoad() : Promise.resolve(0);
-    check.then(function (count) {
-      if (adsDue && count) {
-        playAds(adsPick(), jfPlayNext);
+    var due = breakDue();
+    var check = due ? Promise.all([spotLoad(promoSrc), spotLoad(adSrc)]) : Promise.resolve([0, 0]);
+    check.then(function (counts) {
+      if (due && (counts[0] || counts[1])) {
+        playBreak(buildBreak(), jfPlayNext);
       } else if (triviaDue()) {
         playTrivia(jfPlayNext);
       } else {
         triviaNote();
-        adsNote();
+        breakNote();
         jfPlayNext();
       }
     });
@@ -1140,7 +1240,7 @@
     jfState.items = [];
     window.addEventListener("pagehide", jfSave);
     triviaNote();
-    adsLoad().then(adsNote);
+    Promise.all([spotLoad(promoSrc), spotLoad(adSrc)]).then(breakNote);
     jfPlayNext();
   }
 
