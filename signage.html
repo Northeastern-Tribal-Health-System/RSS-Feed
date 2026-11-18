@@ -61,6 +61,9 @@
     adsevery     Minutes between breaks (default: 15). Like trivia, a break only starts when
                  a video ends. 0 = after every video, for testing.
     adsmax       Seconds per break (default: 150). There is always at least one item.
+    resumehours  After a reload or power cycle, a Jellyfin video that was cut off picks up
+                 where it stopped if that was less than this many hours ago (default: 2),
+                 so each morning starts with a fresh video instead of yesterday's last one.
 -->
 <style>
   :root {
@@ -490,6 +493,7 @@
     jflib: "Longhouse",
     jforder: "shuffle",
     jfrefresh: "30",
+    resumehours: "2",
     cc: "1",
     mute: "1",
     videorefresh: "240",
@@ -729,7 +733,7 @@
       if (saved && Date.now() - (saved.at || 0) < 3 * 86400000) {
         jfState.queue = (saved.queue || []).filter(function (id) { return have[id]; });
         jfState.played = (saved.played || []).filter(function (id) { return have[id]; });
-        if (saved.cur && have[saved.cur] && Date.now() - saved.at < 86400000) {
+        if (saved.cur && have[saved.cur] && Date.now() - saved.at < num(cfg.resumehours, 2) * 3600000) {
           jfState.resume = { id: saved.cur, pos: saved.pos || 0 };
         }
       }
@@ -1561,7 +1565,7 @@
   // ---------- Pick up new versions of this page automatically ----------
   // Bump PAGE_VERSION whenever this file changes. Players compare it against the
   // copy on GitHub and reload (with a cache-busting parameter) when it differs.
-  var PAGE_VERSION = "2026-11-18.2";
+  var PAGE_VERSION = "2026-11-18.3";
   debugLine("page", "version " + PAGE_VERSION);
   var su = num(cfg.selfupdate, 10);
   if (su > 0 && location.protocol.indexOf("http") === 0) {
